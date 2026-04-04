@@ -108,14 +108,16 @@ test.describe("Auth Page", () => {
     await clickAuthTab(page, "Sign Up");
     await page.getByLabel("Email").fill("short@test.com");
     await page.getByLabel(/Password/).fill("12");
-    await page.getByRole("button", { name: "Create Account" }).click();
 
-    // ST-203 added password hints that always show in signup mode.
-    // The auth error/status is rendered in a conditionally-mounted <p> with
-    // class "text-sm text-center text-muted-foreground" (only exists after API call).
-    await expect(
-      page.locator("p.text-sm.text-center.text-muted-foreground")
-    ).toBeVisible({ timeout: 15000 });
+    // PB-221: NIST 800-63b policy — min 8 chars + strength score ≥ 2.
+    // "Create Account" is disabled until the password is valid; no API call is made.
+    const createBtn = page.getByRole("button", { name: "Create Account" });
+    await expect(createBtn).toBeDisabled();
+
+    // Inline strength hints (PasswordStrengthMeter) must be visible in signup mode.
+    await expect(page.locator("ul.space-y-1").first()).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("phone OTP send button disabled when phone empty", async ({ page }) => {
