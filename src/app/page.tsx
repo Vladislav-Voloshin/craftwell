@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 import { WaitlistForm } from "@/components/ui/waitlist-form";
 import {
   Moon,
@@ -105,19 +107,17 @@ export default function HomePage() {
             peer-reviewed research.
           </p>
           <div className="flex gap-3 sm:gap-4 justify-center flex-wrap pt-2">
-            <Link href="/auth">
-              <Button className="py-3 px-8 text-base h-auto">
-                Get Started
-                <ArrowRight className="ml-1.5 size-4" />
-              </Button>
+            {/* Use buttonVariants on Link directly — <a><button> nesting is invalid HTML
+                and prevents click propagation in Chrome/Safari (PB-216) */}
+            <Link href="/auth" className={cn(buttonVariants(), "py-3 px-8 text-base h-auto")}>
+              Get Started
+              <ArrowRight className="ml-1.5 size-4" />
             </Link>
-            <Link href="/protocols">
-              <Button
-                variant="ghost"
-                className="py-3 px-8 text-base h-auto border border-border"
-              >
-                Browse Protocols
-              </Button>
+            <Link
+              href="/protocols"
+              className={cn(buttonVariants({ variant: "ghost" }), "py-3 px-8 text-base h-auto border border-border")}
+            >
+              Browse Protocols
             </Link>
           </div>
           <p className="text-sm text-muted-foreground/70 pt-1">
