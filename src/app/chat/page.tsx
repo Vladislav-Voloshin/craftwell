@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ChatInterface } from "@/components/chat/chat-interface";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export const metadata: Metadata = {
   title: "Chat — Craftwell",
@@ -54,14 +55,16 @@ export default async function ChatPage({
 
   return (
     <AppShell>
-      <ChatInterface
-        userId={user.id}
-        sessions={sessions || []}
-        initialProtocolId={protocolContext?.id}
-        initialProtocolContext={protocolContext}
-        userFocusAreas={survey?.focus_areas ?? []}
-        userHealthGoals={survey?.health_goals ?? []}
-      />
+      <ErrorBoundary name="ChatInterface">
+        <ChatInterface
+          userId={user.id}
+          sessions={sessions || []}
+          initialProtocolId={protocolContext?.id}
+          initialProtocolContext={protocolContext}
+          userFocusAreas={survey?.focus_areas ?? []}
+          userHealthGoals={survey?.health_goals ?? []}
+        />
+      </ErrorBoundary>
     </AppShell>
   );
 }

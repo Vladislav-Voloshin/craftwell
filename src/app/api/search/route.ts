@@ -3,9 +3,8 @@ import { requireAuth, apiError, handleApiError } from "@/lib/api/helpers";
 import { getEmbedding } from "@/lib/pinecone/embeddings";
 import { queryVectors } from "@/lib/pinecone/client";
 import { getRequestId } from "@/lib/api/request-id";
+import { PINECONE_TIMEOUT_MS, SEARCH_VECTOR_PAGE_SIZE, SEARCH_TEXT_PAGE_SIZE } from "@/lib/constants";
 import logger from "@/lib/logger";
-
-const PINECONE_TIMEOUT_MS = 5000;
 
 /** Run an async operation with a timeout. Rejects if it takes too long. */
 function withTimeout<T>(
@@ -69,7 +68,7 @@ export async function GET(request: NextRequest) {
         )
         .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
         .order("effectiveness_rank")
-        .limit(10),
+        .limit(SEARCH_VECTOR_PAGE_SIZE),
 
       // 2. Semantic search via Pinecone (with timeout and graceful degradation)
       (async () => {
@@ -115,7 +114,7 @@ export async function GET(request: NextRequest) {
           `title.ilike.%${q}%,description.ilike.%${q}%,category.ilike.%${q}%`,
         )
         .order("effectiveness_rank")
-        .limit(20);
+        .limit(SEARCH_TEXT_PAGE_SIZE);
       fallbackResults = data;
     }
 
