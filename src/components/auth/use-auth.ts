@@ -58,13 +58,16 @@ export function useAuth() {
     setLoading(false);
   }
 
-  async function handlePhoneOtp() {
+  async function handlePhoneOtp(normalizedPhone: string) {
     setLoading(true);
     setMessage("");
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    // Receive the E.164-normalised number from PhoneAuthForm validation
+    const { error } = await supabase.auth.signInWithOtp({ phone: normalizedPhone });
     if (error) {
       setMessage(error.message);
     } else {
+      // Store the E.164 number so the OTP verification step displays it correctly
+      setPhone(normalizedPhone);
       setOtpSent(true);
       setMessage("We sent a 6-digit code to your phone.");
     }
