@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { WaitlistForm } from "@/components/ui/waitlist-form";
 import {
   Moon,
   Brain,
@@ -304,23 +305,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
+      {/* ── Final CTA / Waitlist ── */}
       <section className="px-4 sm:px-6 pb-20 sm:pb-24">
         <div className="max-w-3xl mx-auto">
           <div className="rounded-2xl bg-muted/20 border border-border/50 p-8 sm:p-12 text-center space-y-6">
             <h2 className="text-2xl sm:text-3xl font-bold">
-              Ready to optimize your health?
+              Get early access
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto leading-relaxed">
-              Join thousands using science-based protocols to improve sleep,
-              focus, exercise, and more.
+              Join our waitlist and be first to access science-based protocols,
+              personalized recommendations, and an AI health adviser.
             </p>
-            <Link href="/auth">
-              <Button className="py-3 px-8 text-base h-auto mt-2">
-                Get Started &mdash; It&apos;s Free
-                <ArrowRight className="ml-1.5 size-4" />
-              </Button>
-            </Link>
+            <WaitlistForm source="landing_cta" />
+            <p className="text-xs text-muted-foreground/60">
+              Already have an account?{" "}
+              <Link href="/auth" className="underline underline-offset-4 hover:text-foreground">
+                Sign in
+              </Link>
+            </p>
           </div>
         </div>
       </section>
