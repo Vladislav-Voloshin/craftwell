@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
+import { checkApiRateLimit } from "@/lib/api/rate-limit";
 import { coreEnv } from "@/lib/env";
 import { z } from "zod";
 
@@ -40,6 +41,9 @@ export async function GET() {
   try {
     const { user, supabase } = await requireAuth();
 
+    const rateLimited = await checkApiRateLimit(user.id, "/api/profile", supabase);
+    if (rateLimited) return rateLimited;
+
     const [{ data: profile }, { data: survey }] = await Promise.all([
       supabase.from("users").select("*").eq("id", user.id).single(),
       supabase.from("survey_responses").select("*").eq("user_id", user.id).maybeSingle(),
@@ -55,6 +59,9 @@ export async function PUT(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
     const { user, supabase } = await requireAuth();
+
+    const rateLimited = await checkApiRateLimit(user.id, "/api/profile", supabase);
+    if (rateLimited) return rateLimited;
 
     const body = await parseBody(request, profileUpdateSchema);
     if (body instanceof Response) return body;
