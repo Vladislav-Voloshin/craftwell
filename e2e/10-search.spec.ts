@@ -41,13 +41,11 @@ test.describe("Protocol Search", () => {
   test("search with no results shows empty state", async ({ page }) => {
     const searchInput = page.getByPlaceholder("Search protocols...");
     await searchInput.fill("xyznonexistent12345");
-    // Wait for debounce to filter — expect zero results
-    await page.waitForFunction(
-      () => document.querySelectorAll("main a[href^='/protocols/']").length === 0
-    );
-
-    const cards = await page.locator("main a[href^='/protocols/']").count();
-    expect(cards).toBe(0);
+    // ST-201 added a "Recommended for You" strip that always shows protocol
+    // links — wait for the empty-state message in the filtered grid instead
+    await expect(
+      page.getByText("No protocols match your search.")
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("clearing search restores all protocols", async ({ page }) => {
