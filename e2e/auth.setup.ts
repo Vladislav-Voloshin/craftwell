@@ -10,9 +10,9 @@
  */
 import { test as setup, expect } from "@playwright/test";
 import { TEST_USER } from "./helpers";
-import path from "path";
+import { AUTH_FILE } from "./auth-file";
 
-export const AUTH_FILE = path.join(__dirname, "../.auth/user.json");
+
 
 setup("authenticate test user", async ({ page }) => {
   await page.goto("/auth", { waitUntil: "domcontentloaded" });

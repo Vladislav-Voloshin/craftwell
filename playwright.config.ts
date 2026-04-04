@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { AUTH_FILE } from "./e2e/auth.setup";
+import { AUTH_FILE } from "./e2e/auth-file";
 
 export default defineConfig({
   testDir: "./e2e",
