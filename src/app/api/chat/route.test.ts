@@ -231,6 +231,7 @@ describe("POST /api/chat — auth & rate limiting", () => {
 describe("POST /api/chat — request validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFrom.mockReset();
     mockCheckRateLimit.mockResolvedValue(null);
     vi.mocked(requireAuth).mockResolvedValue({
       user: { id: "user-123" } as never,
@@ -271,6 +272,7 @@ describe("POST /api/chat — request validation", () => {
 describe("POST /api/chat — session management", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFrom.mockReset();
     mockCheckRateLimit.mockResolvedValue(null);
     mockGetEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
     mockQueryVectors.mockResolvedValue([]);
@@ -317,6 +319,7 @@ describe("POST /api/chat — session management", () => {
 describe("POST /api/chat — SSE streaming", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFrom.mockReset();
     mockCheckRateLimit.mockResolvedValue(null);
     mockGetEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
     mockQueryVectors.mockResolvedValue([]);
@@ -415,6 +418,7 @@ describe("POST /api/chat — SSE streaming", () => {
 describe("POST /api/chat — RAG and system prompt", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFrom.mockReset();
     mockCheckRateLimit.mockResolvedValue(null);
     mockGetEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
     mockQueryVectors.mockResolvedValue([]);
@@ -529,6 +533,7 @@ describe("POST /api/chat — RAG and system prompt", () => {
 describe("POST /api/chat — post-stream cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFrom.mockReset();
     mockCheckRateLimit.mockResolvedValue(null);
     mockGetEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
     mockQueryVectors.mockResolvedValue([]);
