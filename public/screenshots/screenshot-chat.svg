@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#09090b"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="390" height="44" fill="#09090b"/>
+  <text x="20" y="28" font-size="12" fill="#fff" font-weight="600">9:41</text>
+  <rect x="320" y="14" width="50" height="16" rx="4" fill="#333"/>
+  <rect x="322" y="16" width="42" height="12" rx="3" fill="#22c55e"/>
+
+  <!-- Chat header -->
+  <rect x="0" y="44" width="390" height="52" fill="#09090b"/>
+  <rect x="0" y="95" width="390" height="1" fill="#27272a"/>
+  <!-- Sidebar toggle -->
+  <rect x="12" y="56" width="32" height="32" rx="8" fill="#18181b"/>
+  <rect x="18" y="64" width="20" height="2" rx="1" fill="#71717a"/>
+  <rect x="18" y="70" width="20" height="2" rx="1" fill="#71717a"/>
+  <rect x="18" y="76" width="14" height="2" rx="1" fill="#71717a"/>
+  <text x="56" y="76" font-size="14" fill="#e4e4e7" font-weight="500">Sleep Optimization Chat</text>
+
+  <!-- Sidebar (partially visible) -->
+  <rect x="0" y="96" width="72" height="692" fill="#111113"/>
+  <rect x="72" y="96" width="1" height="692" fill="#27272a"/>
+  <text x="8" y="120" font-size="9" fill="#52525b">Chats</text>
+  <rect x="8" y="128" width="56" height="32" rx="6" fill="#1c1c1f"/>
+  <text x="12" y="148" font-size="8" fill="#a1a1aa">Sleep Chat</text>
+  <rect x="8" y="166" width="56" height="24" rx="6" fill="none"/>
+  <text x="12" y="181" font-size="8" fill="#52525b">Focus Chat</text>
+  <rect x="8" y="196" width="56" height="24" rx="6" fill="none"/>
+  <text x="12" y="211" font-size="8" fill="#52525b">Exercise</text>
+  <rect x="8" y="748" width="56" height="32" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="16" y="768" font-size="8" fill="#71717a">+ New</text>
+
+  <!-- Chat area -->
+  <!-- User message 1 -->
+  <rect x="196" y="108" width="182" height="52" rx="14" rx="14" fill="#6366f1"/>
+  <text x="208" y="126" font-size="11" fill="#fff">How do I improve my</text>
+  <text x="208" y="141" font-size="11" fill="#fff">sleep quality fast?</text>
+  <text x="340" y="154" font-size="9" fill="#a5b4fc">9:38</text>
+
+  <!-- AI message 1 -->
+  <rect x="80" y="172" width="280" height="120" rx="14" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="92" y="190" font-size="11" fill="#e4e4e7" font-weight="600">Craftwell</text>
+  <text x="92" y="208" font-size="10" fill="#a1a1aa">Based on your goals (Better Sleep,</text>
+  <text x="92" y="222" font-size="10" fill="#a1a1aa">Reduce Stress), here are the top 3</text>
+  <text x="92" y="236" font-size="10" fill="#a1a1aa">evidence-based interventions:</text>
+  <text x="92" y="254" font-size="10" fill="#71717a">1. Morning light within 30 min of waking</text>
+  <text x="92" y="268" font-size="10" fill="#71717a">2. Avoid screens 1hr before bed</text>
+  <text x="92" y="282" font-size="10" fill="#71717a">3. Keep room temp at 65–68°F</text>
+
+  <!-- Sources chip -->
+  <rect x="92" y="288" width="120" height="18" rx="9" fill="#27272a"/>
+  <text x="100" y="300" font-size="8" fill="#71717a">📚 3 research sources</text>
+  <text x="310" y="286" font-size="9" fill="#52525b">9:38</text>
+
+  <!-- User message 2 -->
+  <rect x="168" y="308" width="210" height="40" rx="14" fill="#6366f1"/>
+  <text x="180" y="323" font-size="11" fill="#fff">Tell me more about the</text>
+  <text x="180" y="338" font-size="11" fill="#fff">morning light protocol</text>
+
+  <!-- AI message 2 (streaming / longer) -->
+  <rect x="80" y="360" width="296" height="180" rx="14" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="92" y="378" font-size="11" fill="#e4e4e7" font-weight="600">Craftwell</text>
+  <text x="92" y="396" font-size="10" fill="#a1a1aa">Morning light is the single highest-</text>
+  <text x="92" y="410" font-size="10" fill="#a1a1aa">leverage sleep intervention. Here's</text>
+  <text x="92" y="424" font-size="10" fill="#a1a1aa">the exact protocol:</text>
+  <text x="92" y="442" font-size="10" fill="#71717a">⏰ Timing: Within 30 min of waking</text>
+  <text x="92" y="458" font-size="10" fill="#71717a">☀️ Duration: 5–10 min (cloudy = 15–20)</text>
+  <text x="92" y="474" font-size="10" fill="#71717a">👓 No sunglasses — the effect requires</text>
+  <text x="92" y="488" font-size="10" fill="#71717a">   direct retinal stimulation</text>
+  <text x="92" y="506" font-size="10" fill="#71717a">📈 Results: Better mood, focus, and</text>
+  <text x="92" y="520" font-size="10" fill="#71717a">   sleep onset within 3–5 days</text>
+
+  <!-- Sources chip -->
+  <rect x="92" y="528" width="120" height="18" rx="9" fill="#27272a"/>
+  <text x="100" y="540" font-size="8" fill="#71717a">📚 5 research sources</text>
+
+  <!-- Streaming cursor indicator -->
+  <rect x="218" y="528" width="8" height="14" rx="2" fill="#6366f1" fill-opacity="0.8">
+    <animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Related protocol card -->
+  <rect x="80" y="554" width="220" height="56" rx="12" fill="#1c1c1f" stroke="#27272a" stroke-width="1"/>
+  <rect x="80" y="554" width="3" height="56" rx="1.5" fill="#6366f1"/>
+  <text x="92" y="570" font-size="10" fill="#a1a1aa">Related Protocol</text>
+  <text x="92" y="585" font-size="11" fill="#e4e4e7" font-weight="600">Morning Light Protocol →</text>
+  <text x="92" y="600" font-size="9" fill="#71717a">Tap to view full guide &amp; mark complete</text>
+
+  <!-- Input area -->
+  <rect x="0" y="720" width="390" height="68" fill="#09090b"/>
+  <rect x="0" y="720" width="390" height="1" fill="#27272a"/>
+  <rect x="12" y="730" width="318" height="48" rx="24" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="32" y="758" font-size="12" fill="#52525b">Ask a follow-up question...</text>
+  <rect x="338" y="730" width="40" height="48" rx="24" fill="#6366f1"/>
+  <text x="351" y="759" font-size="18" fill="#fff">↑</text>
+
+  <!-- Bottom nav -->
+  <rect x="0" y="788" width="390" height="56" fill="#09090b"/>
+  <rect x="0" y="788" width="390" height="1" fill="#27272a"/>
+  <text x="44" y="820" font-size="10" fill="#52525b" text-anchor="middle">Protocols</text>
+  <text x="130" y="820" font-size="10" fill="#6366f1" font-weight="600" text-anchor="middle">Chat</text>
+  <text x="260" y="820" font-size="10" fill="#52525b" text-anchor="middle">Profile</text>
+  <rect x="116" y="788" width="28" height="2" rx="1" fill="#6366f1"/>
+
+  <!-- Home indicator -->
+  <rect x="155" y="828" width="80" height="4" rx="2" fill="#fff" fill-opacity="0.3"/>
+</svg>
