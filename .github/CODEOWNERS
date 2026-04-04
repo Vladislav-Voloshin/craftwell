@@ -1,0 +1,17 @@
+# Default owners for everything in the repo
+* @Vladislav-Voloshin
+
+# Frontend
+src/app/ @Vladislav-Voloshin
+src/components/ @Vladislav-Voloshin
+
+# Backend / API
+src/lib/ @Vladislav-Voloshin
+src/app/api/ @Vladislav-Voloshin
+
+# Infrastructure
+.github/ @Vladislav-Voloshin
+supabase/ @Vladislav-Voloshin
+
+# E2E Tests
+e2e/ @Vladislav-Voloshin
