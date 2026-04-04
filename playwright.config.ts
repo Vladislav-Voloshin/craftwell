@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { AUTH_FILE } from "./e2e/auth.setup";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -14,14 +15,33 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
+    // ── Auth setup — runs once, saves session to .auth/user.json ────────────
+    {
+      name: "setup",
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+
+    // ── Smoke tests (01–07) — don't depend on saved auth ───────────────────
+    // Auth spec (02) deliberately tests unauthenticated flows — no storageState.
+    // Other smoke specs (01, 03–07) call signInTestUser() themselves.
     {
       name: "smoke",
       testMatch: /0[1-7]-.*\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
+
+    // ── Full suite — reuses saved auth session across all workers ───────────
+    // Tests that call signInTestUser() still work (they detect the session or
+    // re-auth if it's expired). Tests that only use gotoAuthenticated() get
+    // a fast path via the stored session.
     {
       name: "full",
-      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: AUTH_FILE,
+      },
     },
   ],
   webServer: {
