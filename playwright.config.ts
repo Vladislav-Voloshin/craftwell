@@ -35,11 +35,12 @@ export default defineConfig({
     },
 
     // ── Full suite — reuses saved auth session across all workers ───────────
-    // Tests that call signInTestUser() still work (they detect the session or
-    // re-auth if it's expired). Tests that only use gotoAuthenticated() get
-    // a fast path via the stored session.
+    // Excludes 02-auth.spec.ts which tests unauthenticated flows — those tests
+    // are already covered by the smoke project and would fail here because
+    // storageState pre-authenticates every test context.
     {
       name: "full",
+      testIgnore: /02-auth\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],
