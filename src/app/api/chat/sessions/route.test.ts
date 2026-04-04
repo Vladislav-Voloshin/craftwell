@@ -57,7 +57,7 @@ vi.mock("@/lib/logger", () => ({
 
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
-import { GET, DELETE } from "./route";
+import { GET, DELETE, PATCH } from "./route";
 import { requireAuth } from "@/lib/api/helpers";
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -78,6 +78,7 @@ function queryChain(result: { data?: unknown; error?: unknown; count?: number | 
   chain.limit = terminal;
   chain.single = terminal;
   chain.delete = vi.fn().mockReturnValue(chain);
+  chain.update = vi.fn().mockReturnValue(chain);
   // When awaited directly (e.g. await supabase.from(...).delete().eq(...))
   // the chain acts as a thenable resolving to result
   chain.then = vi.fn((resolve: (v: unknown) => void) => resolve(result));
@@ -279,6 +280,98 @@ describe("DELETE /api/chat/sessions", () => {
     const res = await DELETE(
       makeRequest("DELETE", "http://localhost/api/chat/sessions?id=s-1")
     );
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("PATCH /api/chat/sessions — rename", () => {
+  const SESSION_UUID = "550e8400-e29b-41d4-a716-446655440050";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireAuth).mockResolvedValue({
+      user: { id: "user-123" } as never,
+      supabase: { from: mockFrom } as never,
+    });
+  });
+
+  it("renames a session and returns new title", async () => {
+    mockFrom
+      .mockReturnValueOnce(queryChain({ data: { id: SESSION_UUID, user_id: "user-123" } }))
+      .mockReturnValueOnce(queryChain({ error: null }));
+
+    const req = new NextRequest("http://localhost/api/chat/sessions", {
+      method: "PATCH",
+      body: JSON.stringify({ session_id: SESSION_UUID, title: "My renamed chat" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("renamed");
+    expect(body.title).toBe("My renamed chat");
+  });
+
+  it("returns 404 when session belongs to another user", async () => {
+    mockFrom.mockReturnValue(
+      queryChain({ data: { id: SESSION_UUID, user_id: "other-user" } })
+    );
+
+    const req = new NextRequest("http://localhost/api/chat/sessions", {
+      method: "PATCH",
+      body: JSON.stringify({ session_id: SESSION_UUID, title: "New" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 when session not found", async () => {
+    mockFrom.mockReturnValue(queryChain({ data: null }));
+
+    const req = new NextRequest("http://localhost/api/chat/sessions", {
+      method: "PATCH",
+      body: JSON.stringify({ session_id: SESSION_UUID, title: "New" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 400 for invalid body (missing session_id)", async () => {
+    const req = new NextRequest("http://localhost/api/chat/sessions", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "No session id" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 500 when update query fails", async () => {
+    mockFrom
+      .mockReturnValueOnce(queryChain({ data: { id: SESSION_UUID, user_id: "user-123" } }))
+      .mockReturnValueOnce(queryChain({ error: { message: "DB write error" } }));
+
+    const req = new NextRequest("http://localhost/api/chat/sessions", {
+      method: "PATCH",
+      body: JSON.stringify({ session_id: SESSION_UUID, title: "New" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req);
+    expect(res.status).toBe(500);
+  });
+
+  it("returns 401 for unauthenticated request", async () => {
+    vi.mocked(requireAuth).mockRejectedValueOnce(
+      Object.assign(new Error("Unauthorized"), { name: "AuthError" })
+    );
+    const req = new NextRequest("http://localhost/api/chat/sessions", {
+      method: "PATCH",
+      body: JSON.stringify({ session_id: SESSION_UUID, title: "New" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await PATCH(req);
     expect(res.status).toBe(401);
   });
 });
