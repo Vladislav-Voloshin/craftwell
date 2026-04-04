@@ -18,6 +18,21 @@ test.describe("Protocol Favorites", () => {
     const firstHeart = page.locator("main button[aria-label*='favorites']").first();
     await expect(firstHeart).toBeVisible();
 
+    // Read initial state — parallel workers share a Supabase test account so
+    // the protocol may already be favorited by another worker
+    const initialLabel = await firstHeart.getAttribute("aria-label");
+    const startedFavorited = initialLabel?.includes("Remove");
+
+    // Normalize to "not favorited" so the add→remove cycle is predictable
+    if (startedFavorited) {
+      const [resetRes] = await Promise.all([
+        page.waitForResponse((r) => r.url().includes("/api/protocols/favorites") && r.status() === 200),
+        firstHeart.click(),
+      ]);
+      expect(resetRes.ok()).toBe(true);
+      await expect(firstHeart).toHaveAttribute("aria-label", "Add to favorites", { timeout: 10000 });
+    }
+
     // Click to favorite — wait for API response
     const [favResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes("/api/protocols/favorites") && r.status() === 200),
@@ -65,10 +80,12 @@ test.describe("Protocol Favorites", () => {
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
+    // Wait for SSR page to fully render before asserting interactive elements
+    await page.waitForLoadState("domcontentloaded");
 
     // Should see favorite button
     const heartButton = page.locator("button[aria-label*='favorites']");
-    await expect(heartButton).toBeVisible();
+    await expect(heartButton).toBeVisible({ timeout: 15000 });
   });
 
   test("can toggle favorite on protocol detail page", async ({ page }) => {
@@ -78,6 +95,20 @@ test.describe("Protocol Favorites", () => {
 
     const heartButton = page.locator("button[aria-label*='favorites']");
     await expect(heartButton).toBeVisible({ timeout: 15000 });
+
+    // Read initial state — parallel workers may have left the protocol favorited or not
+    const initialLabel = await heartButton.getAttribute("aria-label");
+    const startedFavorited = initialLabel?.includes("Remove");
+
+    // Normalize to "not favorited" so the add→remove cycle is predictable
+    if (startedFavorited) {
+      const [resetRes] = await Promise.all([
+        page.waitForResponse((r) => r.url().includes("/api/protocols/favorites") && r.status() === 200),
+        heartButton.click(),
+      ]);
+      expect(resetRes.ok()).toBe(true);
+      await expect(heartButton).toHaveAttribute("aria-label", "Add to favorites", { timeout: 10000 });
+    }
 
     // Toggle favorite — wait for API response
     const [favRes] = await Promise.all([

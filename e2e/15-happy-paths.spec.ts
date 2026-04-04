@@ -77,10 +77,11 @@ test.describe("P0 Happy Path: Protocol → Chat about it", () => {
     await page.locator("main a[href^='/protocols/']").first().waitFor({ timeout: 15000 });
     await page.locator("main a[href^='/protocols/']").first().click();
     await page.waitForURL(/\/protocols\/.+/);
+    await page.waitForLoadState("domcontentloaded");
 
     // Navigate to chat via bottom nav
     const chatLink = page.getByRole("link", { name: /chat/i });
-    await expect(chatLink).toBeVisible();
+    await expect(chatLink).toBeVisible({ timeout: 15000 });
     await chatLink.click();
     await page.waitForURL(/(\/chat|\/auth)/, { timeout: 10000 });
 
@@ -128,8 +129,8 @@ test.describe("P0 Happy Path: Full Navigation Cycle", () => {
     }
     await expect(page).toHaveURL(/\/profile/);
 
-    // Verify profile loaded
-    await expect(page.getByText(TEST_USER.email)).toBeVisible();
+    // Verify profile loaded — email is client-side rendered, needs extra wait
+    await expect(page.getByText(TEST_USER.email)).toBeVisible({ timeout: 15000 });
 
     // Back to protocols
     const protocolsLink = page.getByRole("link", { name: /protocols/i });

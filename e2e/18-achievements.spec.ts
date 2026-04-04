@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ensureAuthenticated } from "./helpers";
+import { ensureAuthenticated, gotoAuthenticated } from "./helpers";
 
 test.describe("Profile Achievements", () => {
   test.beforeEach(async ({ page }) => {
@@ -7,24 +7,21 @@ test.describe("Profile Achievements", () => {
   });
 
   test("displays achievements section on profile page", async ({ page }) => {
-    await page.goto("/profile");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/profile");
 
     // Should show Achievements card
     await expect(page.getByText("Achievements")).toBeVisible({ timeout: 10000 });
   });
 
   test("shows unlocked count", async ({ page }) => {
-    await page.goto("/profile");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/profile");
 
     // Should show X/Y unlocked
     await expect(page.getByText(/\d+\/\d+ unlocked/)).toBeVisible({ timeout: 10000 });
   });
 
   test("shows achievement badges with icons", async ({ page }) => {
-    await page.goto("/profile");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/profile");
 
     // Wait for achievements to load (replace skeleton)
     await expect(page.getByText("Achievements")).toBeVisible({ timeout: 10000 });
@@ -36,8 +33,7 @@ test.describe("Profile Achievements", () => {
   });
 
   test("shows progress bars for locked achievements", async ({ page }) => {
-    await page.goto("/profile");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/profile");
 
     await expect(page.getByText("Achievements")).toBeVisible({ timeout: 10000 });
 

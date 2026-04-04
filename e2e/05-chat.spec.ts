@@ -6,13 +6,12 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { signInTestUser } from "./helpers";
+import { signInTestUser, gotoAuthenticated } from "./helpers";
 
 test.describe("Chat Interface", () => {
   test.beforeEach(async ({ page }) => {
     await signInTestUser(page);
-    await page.goto("/chat");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/chat");
   });
 
   test("displays empty chat state with suggestions", async ({ page }) => {
