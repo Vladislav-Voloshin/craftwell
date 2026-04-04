@@ -115,17 +115,18 @@ vi.mock("./protocol-context-banner", () => ({
   ),
 }));
 
+const MockScrollArea = React.forwardRef<
+  HTMLDivElement,
+  { children: React.ReactNode; className?: string }
+>(({ children, className }, ref) => (
+  <div data-testid="scroll-area" className={className} ref={ref}>
+    {children}
+  </div>
+));
+MockScrollArea.displayName = "MockScrollArea";
+
 vi.mock("@/components/ui/scroll-area", () => ({
-  ScrollArea: React.forwardRef(
-    (
-      { children, className }: { children: React.ReactNode; className?: string },
-      ref: React.Ref<HTMLDivElement>
-    ) => (
-      <div data-testid="scroll-area" className={className} ref={ref}>
-        {children}
-      </div>
-    )
-  ),
+  ScrollArea: MockScrollArea,
 }));
 
 vi.mock("lucide-react", () => ({
