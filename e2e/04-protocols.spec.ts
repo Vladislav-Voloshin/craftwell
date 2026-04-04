@@ -137,10 +137,12 @@ test.describe("Protocol Detail", () => {
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
     await page.waitForLoadState("domcontentloaded");
+    // Wait for SSR content to render before asserting back link
+    await page.waitForSelector("h1", { timeout: 20000 });
 
     // Should have a back link — could be text or arrow icon
     const backLink = page.locator("a[href='/protocols']").first();
-    await expect(backLink).toBeVisible();
+    await expect(backLink).toBeVisible({ timeout: 15000 });
     await backLink.click();
     await page.waitForURL("**/protocols", { timeout: 10000 });
   });

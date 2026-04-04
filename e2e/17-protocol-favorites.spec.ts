@@ -79,6 +79,20 @@ test.describe("Protocol Favorites", () => {
     const heartButton = page.locator("button[aria-label*='favorites']");
     await expect(heartButton).toBeVisible({ timeout: 15000 });
 
+    // Read initial state — parallel workers may have left the protocol favorited or not
+    const initialLabel = await heartButton.getAttribute("aria-label");
+    const startedFavorited = initialLabel?.includes("Remove");
+
+    // Normalize to "not favorited" so the add→remove cycle is predictable
+    if (startedFavorited) {
+      const [resetRes] = await Promise.all([
+        page.waitForResponse((r) => r.url().includes("/api/protocols/favorites") && r.status() === 200),
+        heartButton.click(),
+      ]);
+      expect(resetRes.ok()).toBe(true);
+      await expect(heartButton).toHaveAttribute("aria-label", "Add to favorites", { timeout: 10000 });
+    }
+
     // Toggle favorite — wait for API response
     const [favRes] = await Promise.all([
       page.waitForResponse((r) => r.url().includes("/api/protocols/favorites") && r.status() === 200),
