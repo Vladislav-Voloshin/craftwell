@@ -7,12 +7,12 @@ import { toggleItem } from "@/lib/utils";
 import clientLogger from "@/lib/client-logger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StepHealthGoals } from "@/components/onboarding/step-health-goals";
-import { StepSleepStress } from "@/components/onboarding/step-sleep-stress";
-import { StepExerciseSupplements } from "@/components/onboarding/step-exercise-supplements";
-import { StepFocusAreas } from "@/components/onboarding/step-focus-areas";
+import { StepGoalsFocus } from "@/components/onboarding/step-goals-focus";
+import { StepQuickPrefs } from "@/components/onboarding/step-quick-prefs";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 2;
+
+const STEP_LABELS = ["Goals & Focus", "Quick Preferences"];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -22,12 +22,11 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const [sleepQuality, setSleepQuality] = useState(5);
-  const [exerciseFrequency, setExerciseFrequency] = useState("");
-  const [stressLevel, setStressLevel] = useState(5);
-  const [supplementExperience, setSupplementExperience] = useState("");
   const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>([]);
-
+  const [sleepQuality, setSleepQuality] = useState(5);
+  const [stressLevel, setStressLevel] = useState(5);
+  const [exerciseFrequency, setExerciseFrequency] = useState("");
+  const [supplementExperience, setSupplementExperience] = useState("");
 
   async function handleComplete() {
     setLoading(true);
@@ -39,11 +38,11 @@ export default function OnboardingPage() {
       const { error: surveyError } = await supabase.from("survey_responses").upsert({
         user_id: user.id,
         health_goals: selectedGoals,
-        sleep_quality: sleepQuality,
-        exercise_frequency: exerciseFrequency,
-        stress_level: stressLevel,
-        supplement_experience: supplementExperience,
         focus_areas: selectedFocusAreas,
+        sleep_quality: sleepQuality,
+        stress_level: stressLevel,
+        exercise_frequency: exerciseFrequency,
+        supplement_experience: supplementExperience,
       }, { onConflict: "user_id" });
 
       if (surveyError) {
@@ -75,29 +74,23 @@ export default function OnboardingPage() {
   }
 
   const steps = [
-    <StepHealthGoals
-      key="goals"
+    <StepGoalsFocus
+      key="goals-focus"
       selectedGoals={selectedGoals}
-      onToggle={(goal) => setSelectedGoals(toggleItem(selectedGoals, goal))}
+      selectedFocusAreas={selectedFocusAreas}
+      onToggleGoal={(goal) => setSelectedGoals(toggleItem(selectedGoals, goal))}
+      onToggleFocusArea={(area) => setSelectedFocusAreas(toggleItem(selectedFocusAreas, area))}
     />,
-    <StepSleepStress
-      key="sleep"
+    <StepQuickPrefs
+      key="quick-prefs"
       sleepQuality={sleepQuality}
       stressLevel={stressLevel}
-      onSleepChange={setSleepQuality}
-      onStressChange={setStressLevel}
-    />,
-    <StepExerciseSupplements
-      key="exercise"
       exerciseFrequency={exerciseFrequency}
       supplementExperience={supplementExperience}
+      onSleepChange={setSleepQuality}
+      onStressChange={setStressLevel}
       onExerciseChange={setExerciseFrequency}
       onSupplementChange={setSupplementExperience}
-    />,
-    <StepFocusAreas
-      key="focus"
-      selectedAreas={selectedFocusAreas}
-      onToggle={(area) => setSelectedFocusAreas(toggleItem(selectedFocusAreas, area))}
     />,
   ];
 
@@ -116,7 +109,7 @@ export default function OnboardingPage() {
             ))}
           </div>
           <CardTitle>
-            Step {step + 1} of {TOTAL_STEPS}
+            Step {step + 1} of {TOTAL_STEPS} — {STEP_LABELS[step]}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
