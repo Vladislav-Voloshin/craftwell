@@ -5,10 +5,11 @@ import { zxcvbn, zxcvbnOptions } from "@zxcvbn-ts/core";
 import * as zxcvbnCommonPackage from "@zxcvbn-ts/language-en";
 import { Button } from "@/components/ui/button";
 
-// Initialise zxcvbn-ts with English dictionary (runs once at module load)
+// Initialise zxcvbn-ts with English dictionary (runs once at module load).
+// adjacencyGraphs are built into @zxcvbn-ts/core — language-en only provides
+// dictionary and translations.
 zxcvbnOptions.setOptions({
   translations: zxcvbnCommonPackage.translations,
-  graphs: zxcvbnCommonPackage.adjacencyGraphs,
   dictionary: {
     ...zxcvbnCommonPackage.dictionary,
   },
