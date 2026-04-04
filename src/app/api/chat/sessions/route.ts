@@ -38,15 +38,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ messages: messages || [] });
     }
 
-    // List all sessions
+    // List all sessions with pagination
+    const parsedLimit = parseInt(searchParams.get("limit") || "50", 10);
+    const parsedOffset = parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Math.min(Math.max(1, Number.isNaN(parsedLimit) ? 50 : parsedLimit), 200);
+    const offset = Math.max(0, Number.isNaN(parsedOffset) ? 0 : parsedOffset);
+
+    // Fetch total count for pagination metadata
+    const { count: total } = await supabase
+      .from("chat_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
     const { data: sessions } = await supabase
       .from("chat_sessions")
       .select("id, title, protocol_id, created_at, updated_at")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .range(offset, offset + limit - 1);
 
-    return NextResponse.json({ sessions: sessions || [] });
+    const totalCount = total ?? 0;
+
+    return NextResponse.json({
+      sessions: sessions || [],
+      total: totalCount,
+      hasMore: offset + limit < totalCount,
+    });
   } catch (err) {
     return handleApiError(err, requestId);
   }

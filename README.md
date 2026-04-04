@@ -3,6 +3,7 @@
 AI-powered health protocol recommendations based on Huberman Lab research. Browse evidence-based protocols, track daily completions, and chat with an AI assistant grounded in peer-reviewed sources.
 
 **Production:** https://craftwell.vercel.app
+**Preview (dev):** Deployed automatically from the `dev` branch via Vercel
 
 ## Tech Stack
 
@@ -87,11 +88,13 @@ Create a `.env.local` file with the following:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key for chat and protocol extraction |
+| `ANTHROPIC_MODEL` | No | Claude model ID (default: `claude-sonnet-4-20250514`) |
 | `PINECONE_API_KEY` | Yes | Pinecone vector database key |
 | `PINECONE_INDEX` | Yes | Pinecone index name (default: `craftwell`) |
 | `VOYAGE_API_KEY` | Yes | Voyage AI key for text embeddings |
 | `YOUTUBE_API_KEY` | No | YouTube Data API key (for podcast scraping) |
 | `ADMIN_API_KEY` | No | Protects the `/api/ingest` endpoint |
+| `LOG_LEVEL` | No | Pino log level (default: `info` in production, `debug` in dev) |
 | `NEXT_PUBLIC_APP_URL` | No | App URL (default: `http://localhost:3000`) |
 
 ## Scripts
@@ -125,6 +128,30 @@ src/
     └── supabase/     # Supabase client, server, and middleware
 e2e/                  # Playwright E2E test suites
 ```
+
+## Dev Environment
+
+This project uses a two-branch workflow:
+
+- **`dev`** -- Integration branch. All feature and bugfix branches merge here first. Pushes to `dev` trigger a Vercel preview deployment for testing.
+- **`main`** -- Production branch. When `dev` is stable, it is merged into `main`, which triggers the production deployment at craftwell.vercel.app.
+
+To start working on a new feature:
+
+```bash
+git checkout dev
+git pull origin dev
+git checkout -b feature/my-feature
+# ... make changes ...
+git push -u origin feature/my-feature
+# Open a PR targeting dev
+```
+
+## Health Monitoring
+
+An admin health dashboard is available at `/admin/health`. It displays the real-time status of all external services (Supabase, Pinecone, Anthropic) with latency measurements and auto-refreshes every 30 seconds.
+
+The underlying API endpoint (`GET /api/health`) is public and returns JSON with per-service status checks. It responds with HTTP 200 when all services are healthy and 503 when any service is degraded or unreachable.
 
 ## Automated PR Review
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useChatSessions } from "./use-chat-sessions";
 import type { Message, ChatSession } from "./types";
+import clientLogger from "@/lib/client-logger";
 
 interface UseChatStreamOptions {
   userId: string;
@@ -13,13 +15,22 @@ export function useChatStream({ initialSessions, initialProtocolId }: UseChatStr
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeSession, setActiveSession] = useState<string | null>(null);
   const [protocolId, setProtocolId] = useState<string | undefined>(initialProtocolId);
   const [streamingId, setStreamingId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<ChatSession[]>(initialSessions);
-  const [loadingSession, setLoadingSession] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const {
+    sessions,
+    setSessions,
+    activeSession,
+    setActiveSession,
+    loadingSession,
+    loadSession: loadSessionBase,
+    startNewChat: startNewChatBase,
+    renameSession,
+    deleteSession: deleteSessionBase,
+  } = useChatSessions({ initialSessions });
 
   // Abort any in-flight stream on unmount (navigation away)
   useEffect(() => {
@@ -36,13 +47,12 @@ export function useChatStream({ initialSessions, initialProtocolId }: UseChatStr
     });
   }, []);
 
-  const loadSession = useCallback(async (sessionId: string) => {
-    abortRef.current?.abort();
-    setLoadingSession(true);
-    try {
-      const res = await fetch(`/api/chat/sessions?session_id=${sessionId}`);
-      if (res.ok) {
-        const data = await res.json();
+  const loadSession = useCallback(
+    async (sessionId: string) => {
+      const data = await loadSessionBase(sessionId, () => {
+        abortRef.current?.abort();
+      });
+      if (data) {
         setMessages(
           data.messages.map((m: Message & { id: string }) => ({
             id: m.id,
@@ -52,52 +62,32 @@ export function useChatStream({ initialSessions, initialProtocolId }: UseChatStr
             created_at: m.created_at,
           }))
         );
-        setActiveSession(sessionId);
       }
-    } finally {
-      setLoadingSession(false);
-    }
-  }, []);
+    },
+    [loadSessionBase]
+  );
 
   const startNewChat = useCallback(() => {
-    abortRef.current?.abort();
+    startNewChatBase(() => {
+      abortRef.current?.abort();
+    });
     setMessages([]);
-    setActiveSession(null);
     setProtocolId(undefined);
-  }, []);
+  }, [startNewChatBase]);
 
-  const renameSession = useCallback(async (sessionId: string, title: string) => {
-    const res = await fetch("/api/chat/sessions", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, title }),
-    });
-    if (res.ok) {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, title } : s))
-      );
-      return true;
-    }
-    return false;
-  }, []);
-
-  const deleteSession = useCallback(async (sessionId: string) => {
-    const res = await fetch(`/api/chat/sessions?id=${sessionId}`, {
-      method: "DELETE",
-    });
-    if (res.ok) {
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      if (activeSession === sessionId) {
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      const ok = await deleteSessionBase(sessionId);
+      if (ok && activeSession === sessionId) {
         abortRef.current?.abort();
         setMessages([]);
-        setActiveSession(null);
         setLoading(false);
         setStreamingId(null);
       }
-      return true;
-    }
-    return false;
-  }, [activeSession]);
+      return ok;
+    },
+    [deleteSessionBase, activeSession]
+  );
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || loading) return;
@@ -206,7 +196,7 @@ export function useChatStream({ initialSessions, initialProtocolId }: UseChatStr
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      console.error("[Chat] Stream error:", err);
+      clientLogger.error("[Chat] Stream error:", err);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
@@ -219,7 +209,7 @@ export function useChatStream({ initialSessions, initialProtocolId }: UseChatStr
       setLoading(false);
       setStreamingId(null);
     }
-  }, [input, loading, activeSession, protocolId, scrollToBottom]);
+  }, [input, loading, activeSession, protocolId, scrollToBottom, setActiveSession, setSessions]);
 
   return {
     messages,

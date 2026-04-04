@@ -11,7 +11,7 @@ test.describe("Responsive: Mobile (375x667)", () => {
 
   test("landing page renders on mobile", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
   });
 
   test("auth page renders on mobile", async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe("Responsive: Mobile (375x667)", () => {
     await expect(
       page.getByRole("button", { name: /continue with google/i })
     ).toBeVisible();
-    await expect(page.getByPlaceholder("Email")).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
   });
 
   test("auth card is not clipped on small screens", async ({ page }) => {
@@ -40,7 +40,7 @@ test.describe("Responsive: Tablet (768x1024)", () => {
 
   test("landing page renders on tablet", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
   });
 
   test("auth page renders on tablet", async ({ page }) => {
@@ -54,7 +54,7 @@ test.describe("Responsive: Desktop (1440x900)", () => {
 
   test("landing page renders on desktop", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
   });
 
   test("auth page renders centered on desktop", async ({ page }) => {

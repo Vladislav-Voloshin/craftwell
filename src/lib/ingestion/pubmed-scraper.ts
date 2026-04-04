@@ -7,6 +7,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase, cleanHtml } from "./shared";
+import logger from "@/lib/logger";
 
 interface PubMedArticle {
   pmid: string;
@@ -219,7 +220,7 @@ async function storeArticles(articles: PubMedArticle[]): Promise<number> {
 
     if (error) {
       if (error.code === "23505") continue; // duplicate, skip
-      console.error(`Error storing article ${article.pmid}:`, error);
+      logger.error({ err: error, pmid: article.pmid }, "Error storing article");
     } else {
       stored++;
     }
@@ -232,16 +233,16 @@ async function storeArticles(articles: PubMedArticle[]): Promise<number> {
  * Main PubMed scraping pipeline
  */
 export async function runPubMedScraper() {
-  console.log("Starting PubMed research scraper...");
+  logger.info("Starting PubMed research scraper");
   let totalArticles = 0;
 
   for (const topic of HEALTH_TOPICS) {
-    console.log(`Searching PubMed for: ${topic}`);
+    logger.info({ topic }, "Searching PubMed");
 
     try {
       const pmids = await searchPubMed(topic, 10);
       if (pmids.length === 0) {
-        console.log(`  No results for "${topic}"`);
+        logger.info({ topic }, "No PubMed results");
         continue;
       }
 
@@ -252,18 +253,16 @@ export async function runPubMedScraper() {
       const stored = await storeArticles(articles);
       totalArticles += stored;
 
-      console.log(
-        `  Found ${articles.length} articles, stored ${stored} new chunks`
-      );
+      logger.info({ found: articles.length, stored }, "Stored PubMed articles");
 
       // Rate limit between topics
       await new Promise((r) => setTimeout(r, 500));
     } catch (err) {
-      console.error(`  Error for "${topic}":`, err);
+      logger.error({ err, topic }, "Error processing PubMed topic");
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
 
-  console.log(`PubMed scraper complete: ${totalArticles} articles stored`);
+  logger.info({ totalArticles }, "PubMed scraper complete");
   return totalArticles;
 }

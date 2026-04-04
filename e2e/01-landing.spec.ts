@@ -10,8 +10,8 @@ test.describe("Landing Page", () => {
   test("displays hero section with Craftwell branding", async ({ page }) => {
     await page.goto("/");
 
-    // Check branding
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    // Check branding (first() — Craftwell appears in nav + footer)
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
 
     // Check hero content
     await expect(
@@ -22,7 +22,7 @@ test.describe("Landing Page", () => {
   test("has Get Started CTA linking to auth", async ({ page }) => {
     await page.goto("/");
 
-    const cta = page.getByRole("link", { name: /get started/i });
+    const cta = page.getByRole("link", { name: /get started/i }).first();
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/auth/);

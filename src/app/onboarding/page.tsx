@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toggleItem } from "@/lib/utils";
+import clientLogger from "@/lib/client-logger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StepHealthGoals } from "@/components/onboarding/step-health-goals";
@@ -46,7 +47,7 @@ export default function OnboardingPage() {
       }, { onConflict: "user_id" });
 
       if (surveyError) {
-        console.error("Survey save error:", surveyError);
+        clientLogger.error("Survey save error:", surveyError);
         setError("Failed to save your preferences. Please try again.");
         setLoading(false);
         return;
@@ -59,7 +60,7 @@ export default function OnboardingPage() {
       }, { onConflict: "id" });
 
       if (userError) {
-        console.error("User update error:", userError);
+        clientLogger.error("User update error:", userError);
         setError("Failed to complete setup. Please try again.");
         setLoading(false);
         return;
@@ -67,7 +68,7 @@ export default function OnboardingPage() {
 
       router.push("/protocols?tour=1");
     } catch (err) {
-      console.error("Onboarding error:", err);
+      clientLogger.error("Onboarding error:", err);
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }

@@ -7,6 +7,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase, cleanHtml } from "./shared";
+import logger from "@/lib/logger";
 
 interface SupplementData {
   name: string;
@@ -227,7 +228,7 @@ async function storeSupplementData(data: SupplementData): Promise<number> {
     });
 
     if (error && error.code !== "23505") {
-      console.error(`Error storing ${data.name}:`, error);
+      logger.error({ err: error, name: data.name }, "Error storing supplement");
       return 0;
     }
     return error ? 0 : 1;
@@ -251,7 +252,7 @@ async function storeSupplementData(data: SupplementData): Promise<number> {
     });
 
     if (error && error.code !== "23505") {
-      console.error(`Error storing ${data.name} chunk:`, error);
+      logger.error({ err: error, name: data.name }, "Error storing supplement chunk");
     } else if (!error) {
       stored++;
     }
@@ -264,17 +265,17 @@ async function storeSupplementData(data: SupplementData): Promise<number> {
  * Main Examine.com scraping pipeline
  */
 export async function runExamineScraper() {
-  console.log("Starting Examine.com supplement scraper...");
+  logger.info("Starting Examine.com supplement scraper");
   let totalStored = 0;
 
   for (const supplement of SUPPLEMENTS) {
-    console.log(`Fetching: ${supplement.name}`);
+    logger.info({ name: supplement.name }, "Fetching supplement");
 
     try {
       const html = await fetchSupplementPage(supplement.slug);
 
       if (!html) {
-        console.log(`  Not found: ${supplement.name}`);
+        logger.info({ name: supplement.name }, "Supplement not found");
         continue;
       }
 
@@ -282,16 +283,16 @@ export async function runExamineScraper() {
       const stored = await storeSupplementData(data);
       totalStored += stored;
 
-      console.log(`  Stored ${stored} chunks for ${supplement.name}`);
+      logger.info({ stored, name: supplement.name }, "Stored supplement chunks");
 
       // Rate limit: be respectful to Examine.com
       await new Promise((r) => setTimeout(r, 2000));
     } catch (err) {
-      console.error(`  Error for ${supplement.name}:`, err);
+      logger.error({ err, name: supplement.name }, "Error processing supplement");
       await new Promise((r) => setTimeout(r, 3000));
     }
   }
 
-  console.log(`Examine scraper complete: ${totalStored} supplement chunks stored`);
+  logger.info({ totalStored }, "Examine scraper complete");
   return totalStored;
 }

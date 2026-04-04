@@ -39,4 +39,34 @@ describe("formatSessionDate", () => {
     const result = formatSessionDate("2026-03-10T10:00:00Z");
     expect(result).toMatch(/Mar\s+10/);
   });
+
+  it('returns "6d ago" for exactly 6 days', () => {
+    expect(formatSessionDate("2026-03-21T10:00:00Z")).toBe("6d ago");
+  });
+
+  it("handles month boundaries correctly", () => {
+    vi.setSystemTime(new Date("2026-04-02T12:00:00Z"));
+    expect(formatSessionDate("2026-03-30T10:00:00Z")).toBe("3d ago");
+  });
+
+  it("handles dates far in the past", () => {
+    const result = formatSessionDate("2025-01-15T10:00:00Z");
+    expect(result).toMatch(/Jan\s+15/);
+  });
+});
+
+describe("formatTime edge cases", () => {
+  it("returns empty string for empty string input", () => {
+    expect(formatTime("")).toBe("");
+  });
+
+  it("handles midnight timestamps", () => {
+    const result = formatTime("2026-03-28T00:00:00Z");
+    expect(result).toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it("handles end-of-day timestamps", () => {
+    const result = formatTime("2026-03-28T23:59:59Z");
+    expect(result).toMatch(/\d{1,2}:\d{2}/);
+  });
 });

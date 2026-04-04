@@ -9,6 +9,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSupabaseAdmin as getSupabase } from "./shared";
 import { serverEnv } from "@/lib/env";
+import logger from "@/lib/logger";
 
 function getAnthropic() {
   return new Anthropic({
@@ -123,12 +124,12 @@ Return ONLY valid JSON array, no other text.`,
     // Extract JSON from response (handle markdown code blocks)
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.error("No JSON array found in response");
+      logger.error("No JSON array found in protocol extraction response");
       return [];
     }
     return JSON.parse(jsonMatch[0]) as ExtractedProtocol[];
   } catch (err) {
-    console.error("Error parsing protocol JSON:", err);
+    logger.error({ err }, "Error parsing protocol JSON");
     return [];
   }
 }
@@ -143,9 +144,7 @@ export async function storeProtocols(protocols: ExtractedProtocol[]) {
   for (const protocol of protocols) {
     // Validate category
     if (!VALID_CATEGORIES.includes(protocol.category)) {
-      console.warn(
-        `Invalid category "${protocol.category}" for "${protocol.title}", skipping`
-      );
+      logger.warn({ category: protocol.category, title: protocol.title }, "Invalid protocol category, skipping");
       continue;
     }
 
@@ -170,7 +169,7 @@ export async function storeProtocols(protocols: ExtractedProtocol[]) {
       .single();
 
     if (error || !inserted) {
-      console.error(`Error storing protocol "${protocol.title}":`, error);
+      logger.error({ err: error, title: protocol.title }, "Error storing protocol");
       continue;
     }
 
@@ -202,14 +201,12 @@ export async function storeProtocols(protocols: ExtractedProtocol[]) {
         });
 
       if (toolError) {
-        console.error(`Error storing tool "${tool.title}":`, toolError);
+        logger.error({ err: toolError, title: tool.title }, "Error storing protocol tool");
       }
     }
 
     stored++;
-    console.log(
-      `Stored protocol "${protocol.title}" with ${protocol.tools.length} tools`
-    );
+    logger.info({ title: protocol.title, tools: protocol.tools.length }, "Stored protocol");
   }
 
   return stored;
@@ -236,7 +233,7 @@ export async function runProtocolExtraction() {
   let totalProtocols = 0;
 
   for (const topic of topics) {
-    console.log(`Extracting protocols for topic: ${topic}`);
+    logger.info({ topic }, "Extracting protocols for topic");
 
     // Get relevant chunks from the database
     const { data: chunks } = await supabase
@@ -246,7 +243,7 @@ export async function runProtocolExtraction() {
       .limit(20);
 
     if (!chunks || chunks.length === 0) {
-      console.log(`No content found for "${topic}", skipping`);
+      logger.info({ topic }, "No content found, skipping");
       continue;
     }
 
@@ -258,6 +255,6 @@ export async function runProtocolExtraction() {
     await new Promise((r) => setTimeout(r, 2000));
   }
 
-  console.log(`Protocol extraction complete: ${totalProtocols} protocols stored`);
+  logger.info({ totalProtocols }, "Protocol extraction complete");
   return totalProtocols;
 }

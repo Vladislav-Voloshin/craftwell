@@ -16,7 +16,7 @@ test.describe("App Shell & Navigation", () => {
     await page.goto("/protocols");
     await page.waitForLoadState("domcontentloaded");
 
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
   });
 
   test("bottom nav has Protocols, Chat, and Profile links", async ({

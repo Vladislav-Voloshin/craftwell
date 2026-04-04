@@ -7,6 +7,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase, cleanHtml } from "./shared";
+import logger from "@/lib/logger";
 
 interface GuestResearch {
   guest_name: string;
@@ -153,7 +154,7 @@ async function storeGuestResearch(
 
     if (error) {
       if (error.code === "23505") continue;
-      console.error(`Error storing research for ${guestName}:`, error);
+      logger.error({ err: error, guestName }, "Error storing guest research");
     } else {
       stored++;
     }
@@ -166,21 +167,21 @@ async function storeGuestResearch(
  * Main guest research scraping pipeline
  */
 export async function runGuestResearchScraper() {
-  console.log("Starting guest expert research scraper...");
+  logger.info("Starting guest expert research scraper");
 
   const guests = await getGuests();
-  console.log(`Found ${guests.length} unique guests from episodes`);
+  logger.info({ count: guests.length }, "Found unique guests from episodes");
 
   let totalStored = 0;
 
   for (const guest of guests) {
-    console.log(`Searching research for: ${guest.name}`);
+    logger.info({ name: guest.name }, "Searching research for guest");
 
     try {
       const pmids = await searchGuestResearch(guest.name, 5);
 
       if (pmids.length === 0) {
-        console.log(`  No PubMed results for ${guest.name}`);
+        logger.info({ name: guest.name }, "No PubMed results for guest");
         continue;
       }
 
@@ -190,20 +191,16 @@ export async function runGuestResearchScraper() {
       const stored = await storeGuestResearch(guest.name, articles);
       totalStored += stored;
 
-      console.log(
-        `  Found ${articles.length} papers, stored ${stored} for ${guest.name}`
-      );
+      logger.info({ found: articles.length, stored, name: guest.name }, "Stored guest research");
 
       // Rate limit
       await new Promise((r) => setTimeout(r, 500));
     } catch (err) {
-      console.error(`  Error for ${guest.name}:`, err);
+      logger.error({ err, name: guest.name }, "Error processing guest research");
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
 
-  console.log(
-    `Guest research scraper complete: ${totalStored} research chunks stored`
-  );
+  logger.info({ totalStored }, "Guest research scraper complete");
   return totalStored;
 }

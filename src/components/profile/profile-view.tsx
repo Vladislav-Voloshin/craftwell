@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import clientLogger from "@/lib/client-logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,7 +73,7 @@ export function ProfileView({
             return { protocol_title: up.protocols.title, ...data };
           }
         } catch (err) {
-          console.warn("[Profile] Failed to fetch streaks:", err);
+          clientLogger.warn("[Profile] Failed to fetch streaks:", err);
         }
         return { protocol_title: up.protocols.title, streak: 0, longest_streak: 0, total_days: 0 };
       })

@@ -32,7 +32,21 @@ export function StreakSummary() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading || !data || data.protocols.length === 0) return null;
+  if (loading) return null;
+
+  if (!data || data.protocols.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-6 px-4 text-center">
+          <Flame className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No streaks yet</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Activate a protocol and complete tools daily to build streaks
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const activeStreaks = data.protocols.filter((p) => p.current_streak > 0);
 

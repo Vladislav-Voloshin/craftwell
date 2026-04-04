@@ -6,6 +6,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase } from "./shared";
+import logger from "@/lib/logger";
 
 interface ChunkInput {
   source_type: "podcast" | "newsletter" | "book" | "research" | "supplement";
@@ -78,7 +79,7 @@ export async function processAndStoreChunks(input: ChunkInput): Promise<number> 
     const { error } = await supabase.from("content_chunks").insert(batch);
 
     if (error) {
-      console.error(`Error storing chunk batch ${i}:`, error);
+      logger.error({ err: error, batch: i }, "Error storing chunk batch");
     } else {
       stored += batch.length;
     }
@@ -99,7 +100,7 @@ export async function chunkPodcastEpisodes() {
     .not("transcript", "is", null);
 
   if (!episodes || episodes.length === 0) {
-    console.log("No un-ingested episodes with transcripts found");
+    logger.info("No un-ingested episodes with transcripts found");
     return 0;
   }
 
@@ -125,7 +126,7 @@ export async function chunkPodcastEpisodes() {
       .eq("id", episode.id);
 
     totalChunks += stored;
-    console.log(`Chunked episode "${episode.title}": ${stored} chunks`);
+    logger.info({ title: episode.title, chunks: stored }, "Chunked episode");
   }
 
   return totalChunks;
@@ -142,7 +143,7 @@ export async function chunkNewsletters() {
     .eq("ingested", false);
 
   if (!newsletters || newsletters.length === 0) {
-    console.log("No un-ingested newsletters found");
+    logger.info("No un-ingested newsletters found");
     return 0;
   }
 
@@ -167,7 +168,7 @@ export async function chunkNewsletters() {
       .eq("id", nl.id);
 
     totalChunks += stored;
-    console.log(`Chunked newsletter "${nl.title}": ${stored} chunks`);
+    logger.info({ title: nl.title, chunks: stored }, "Chunked newsletter");
   }
 
   return totalChunks;

@@ -14,6 +14,7 @@ Responses are JSON unless noted. Error responses follow the shape:
 
 ## Table of Contents
 
+- [Health](#health)
 - [Auth](#auth)
 - [Chat](#chat)
 - [Search](#search)
@@ -27,6 +28,43 @@ Responses are JSON unless noted. Error responses follow the shape:
 - [Profile](#profile)
 - [Profile -- Achievements](#profile----achievements)
 - [Ingest (Admin)](#ingest-admin)
+
+---
+
+## Health
+
+### `GET /api/health`
+
+Public health check endpoint that reports the connectivity status of all external services.
+
+| Field | Details |
+|-------|---------|
+| **Auth required** | No |
+| **Cache** | `no-store` (always fresh) |
+
+**Response (200 when healthy, 503 when degraded/unhealthy):**
+
+```json
+{
+  "status": "healthy",
+  "uptime": 3600,
+  "version": "0.1.0",
+  "checks": {
+    "supabase": { "status": "healthy", "latencyMs": 42 },
+    "pinecone": { "status": "healthy", "latencyMs": 110 },
+    "anthropic": { "status": "healthy" }
+  },
+  "timestamp": "2026-03-29T10:00:00Z"
+}
+```
+
+Each service check returns a `status` of `"healthy"`, `"degraded"`, or `"unhealthy"`, with an optional `latencyMs` (for services that are actively probed) and `error` (when unhealthy). The overall `status` is `"healthy"` only when all individual checks are healthy; otherwise it is `"degraded"`.
+
+- **Supabase** is checked with a lightweight `SELECT id FROM protocols LIMIT 1` query.
+- **Pinecone** is checked by calling `describeIndexStats()` on the configured index.
+- **Anthropic** is verified by checking that the `ANTHROPIC_API_KEY` environment variable is set (no API call is made to avoid cost).
+
+The `/admin/health` page consumes this endpoint and auto-refreshes every 30 seconds.
 
 ---
 
@@ -98,20 +136,31 @@ Event types:
 - `error` -- Error message if generation fails
 - `done` -- Stream complete
 
+**Implementation notes:**
+- The Claude model is configured via the `ANTHROPIC_MODEL` environment variable (defaults to `claude-sonnet-4-20250514`).
+- Chat history is loaded with a single joined query (session + messages) to avoid N+1 query patterns.
+- When Pinecone is unreachable, the route degrades gracefully by skipping RAG context rather than returning an error.
+
 ---
 
 ### `GET /api/chat/sessions`
 
-List all chat sessions or load messages for a specific session.
+List all chat sessions or load messages for a specific session. Supports pagination via `offset` and `limit` query parameters.
 
 | Field | Details |
 |-------|---------|
 | **Auth required** | Yes |
 
-**List all sessions:**
+**List all sessions (paginated):**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `offset` | number | No | 0 | Number of sessions to skip |
+| `limit` | number | No | 20 | Maximum sessions to return |
 
 ```
 GET /api/chat/sessions
+GET /api/chat/sessions?offset=0&limit=10
 ```
 
 **Response:**
@@ -394,7 +443,7 @@ Activate, deactivate, or remove a protocol from the user's stack.
 
 ### `GET /api/protocols/completions`
 
-Get today's completed tools for a specific protocol.
+Get today's completed tools for a specific protocol. Supports pagination via `offset` and `limit` query parameters.
 
 | Field | Details |
 |-------|---------|
@@ -402,11 +451,13 @@ Get today's completed tools for a specific protocol.
 
 **Query params:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `protocol_id` | string (UUID) | Yes | |
-| `type` | string | No | Set to `"streaks"` for streak data instead |
-| `tz_offset` | number | No | Client timezone offset in minutes (for accurate "today") |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `protocol_id` | string (UUID) | Yes | | |
+| `type` | string | No | | Set to `"streaks"` for streak data instead |
+| `tz_offset` | number | No | | Client timezone offset in minutes (for accurate "today") |
+| `offset` | number | No | 0 | Number of records to skip |
+| `limit` | number | No | 50 | Maximum records to return |
 
 **Default response (today's completions):**
 

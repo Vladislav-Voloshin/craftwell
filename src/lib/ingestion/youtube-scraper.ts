@@ -7,6 +7,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase } from "./shared";
+import logger from "@/lib/logger";
 import { serverEnv } from "@/lib/env";
 const HUBERMAN_CHANNEL_ID = "UC2D2CMWXMOVWx7giW1n3LIg"; // Huberman Lab
 const API_BASE = "https://www.googleapis.com/youtube/v3";
@@ -40,7 +41,7 @@ async function fetchChannelVideoIds(maxResults = 500): Promise<string[]> {
     const res = await fetch(`${API_BASE}/search?${params}`);
     if (!res.ok) {
       const err = await res.text();
-      console.error("YouTube search API error:", err);
+      logger.error({ err }, "YouTube search API error");
       break;
     }
 
@@ -78,7 +79,7 @@ async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideo[]> {
 
     const res = await fetch(`${API_BASE}/videos?${params}`);
     if (!res.ok) {
-      console.error("YouTube videos API error:", await res.text());
+      logger.error("YouTube videos API error");
       continue;
     }
 
@@ -142,7 +143,7 @@ async function storeYouTubeChunks(videos: YouTubeVideo[]): Promise<number> {
     });
 
     if (error) {
-      console.error(`Error storing "${video.title}":`, error.message);
+      logger.error({ err: error.message, title: video.title }, "Error storing YouTube video");
     } else {
       stored++;
     }
@@ -155,19 +156,19 @@ async function storeYouTubeChunks(videos: YouTubeVideo[]): Promise<number> {
  * Main YouTube scraping pipeline
  */
 export async function runYouTubeScraper() {
-  console.log("Starting YouTube podcast scraper...");
-  console.log("Fetching video IDs from Huberman Lab channel...");
+  logger.info("Starting YouTube podcast scraper");
+  logger.info("Fetching video IDs from Huberman Lab channel");
 
   const videoIds = await fetchChannelVideoIds(500);
-  console.log(`Found ${videoIds.length} videos`);
+  logger.info({ count: videoIds.length }, "Found videos");
 
-  console.log("Fetching video details...");
+  logger.info("Fetching video details");
   const videos = await fetchVideoDetails(videoIds);
-  console.log(`Got details for ${videos.length} videos`);
+  logger.info({ count: videos.length }, "Got video details");
 
-  console.log("Storing as content chunks...");
+  logger.info("Storing as content chunks");
   const stored = await storeYouTubeChunks(videos);
-  console.log(`Stored ${stored} new content chunks from YouTube`);
+  logger.info({ stored }, "Stored content chunks from YouTube");
 
   return { total: videos.length, stored };
 }

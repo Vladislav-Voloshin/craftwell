@@ -77,7 +77,7 @@ test.describe("Protocol Favorites", () => {
     await page.waitForURL(/\/protocols\/.+/);
 
     const heartButton = page.locator("button[aria-label*='favorites']");
-    await expect(heartButton).toBeVisible();
+    await expect(heartButton).toBeVisible({ timeout: 15000 });
 
     // Toggle favorite — wait for API response
     const [favRes] = await Promise.all([

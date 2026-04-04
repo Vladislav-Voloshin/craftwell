@@ -6,6 +6,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase, extractTopics } from "./shared";
+import logger from "@/lib/logger";
 
 interface EpisodeData {
   episode_number: number;
@@ -113,10 +114,10 @@ export async function storeEpisodes(episodes: EpisodeData[]) {
       );
 
     if (error) {
-      console.error(`Error storing batch ${i}:`, error);
+      logger.error({ err: error, batch: i }, "Error storing episode batch");
     } else {
       stored += batch.length;
-      console.log(`Stored ${stored}/${episodes.length} episodes`);
+      logger.info({ stored, total: episodes.length }, "Stored episodes batch");
     }
   }
 
@@ -127,13 +128,13 @@ export async function storeEpisodes(episodes: EpisodeData[]) {
  * Main scraping pipeline
  */
 export async function runPodcastScraper() {
-  console.log("Starting podcast episode scraper...");
+  logger.info("Starting podcast episode scraper");
 
   const episodes = await fetchEpisodesFromRSS();
-  console.log(`Found ${episodes.length} episodes from RSS feed`);
+  logger.info({ count: episodes.length }, "Found episodes from RSS feed");
 
   const stored = await storeEpisodes(episodes);
-  console.log(`Successfully stored ${stored} episodes`);
+  logger.info({ stored }, "Successfully stored episodes");
 
   return { total: episodes.length, stored };
 }

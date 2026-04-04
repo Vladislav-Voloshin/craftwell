@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import clientLogger from "@/lib/client-logger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -91,7 +92,7 @@ export function ProfileEditor({ profile, survey, onSave, onCancel }: ProfileEdit
       }, 600);
     } catch (err) {
       setError("Network error. Please try again.");
-      console.error("[ProfileEditor] Save failed:", err);
+      clientLogger.error("[ProfileEditor] Save failed:", err);
     } finally {
       setSaving(false);
     }

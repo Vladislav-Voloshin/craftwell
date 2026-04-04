@@ -6,6 +6,7 @@
  */
 
 import { getSupabaseAdmin as getSupabase, cleanHtml, extractTopics } from "./shared";
+import logger from "@/lib/logger";
 
 interface NewsletterData {
   title: string;
@@ -38,7 +39,7 @@ export async function fetchNewsletterList(): Promise<NewsletterData[]> {
       }
     }
 
-    console.log(`Found ${links.length} newsletter links`);
+    logger.info({ count: links.length }, "Found newsletter links");
 
     // Fetch each newsletter page
     for (const link of links) {
@@ -69,11 +70,11 @@ export async function fetchNewsletterList(): Promise<NewsletterData[]> {
         // Rate limiting
         await new Promise((r) => setTimeout(r, 500));
       } catch (err) {
-        console.error(`Error fetching newsletter ${link}:`, err);
+        logger.error({ err, link }, "Error fetching newsletter");
       }
     }
   } catch (err) {
-    console.error("Error fetching newsletter list:", err);
+    logger.error({ err }, "Error fetching newsletter list");
   }
 
   return newsletters;
@@ -102,7 +103,7 @@ export async function storeNewsletters(newsletters: NewsletterData[]) {
       );
 
     if (error) {
-      console.error(`Error storing newsletter "${nl.title}":`, error);
+      logger.error({ err: error, title: nl.title }, "Error storing newsletter");
     } else {
       stored++;
     }
@@ -115,13 +116,13 @@ export async function storeNewsletters(newsletters: NewsletterData[]) {
  * Main newsletter ingestion pipeline
  */
 export async function runNewsletterScraper() {
-  console.log("Starting newsletter scraper...");
+  logger.info("Starting newsletter scraper");
 
   const newsletters = await fetchNewsletterList();
-  console.log(`Found ${newsletters.length} newsletters`);
+  logger.info({ count: newsletters.length }, "Found newsletters");
 
   const stored = await storeNewsletters(newsletters);
-  console.log(`Successfully stored ${stored} newsletters`);
+  logger.info({ stored }, "Successfully stored newsletters");
 
   return { total: newsletters.length, stored };
 }

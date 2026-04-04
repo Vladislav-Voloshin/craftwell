@@ -6,6 +6,40 @@
 
 ---
 
+## Sprint 15 Changes (2026-03-29)
+
+The following architectural changes were introduced during Sprint 15 and should be considered alongside the findings below.
+
+### Branching and Deployment Flow
+
+Development now follows a `dev -> main` branching model. Feature branches are merged into `dev` first, which triggers a Vercel preview deployment. Merges from `dev` to `main` trigger the production deployment at craftwell.vercel.app. This replaces the previous workflow where feature branches merged directly into `main`.
+
+### Health Monitoring Dashboard
+
+A new public health check endpoint (`GET /api/health`) reports the connectivity status of Supabase, Pinecone, and Anthropic. It returns 200 when all services are healthy, 503 when any service is degraded or unreachable. An admin dashboard at `/admin/health` consumes this endpoint, displaying per-service latency, uptime, and auto-refreshing every 30 seconds.
+
+### Graceful Degradation for Pinecone
+
+The chat and search routes now handle Pinecone failures gracefully. When Pinecone is unreachable, the system continues to function using only Supabase data rather than returning a 500 error. This improves availability when the vector search service has transient outages.
+
+### Pagination on Chat Sessions and Completions
+
+`GET /api/chat/sessions` and `GET /api/protocols/completions` now accept `offset` and `limit` query parameters, allowing the frontend to paginate through large result sets instead of loading everything at once. This addresses the scale concerns raised in Finding D-1 and the dashboard aggregation rows in Section 2.3.
+
+### Chat Context Bug Fixes
+
+Several bugs were fixed in the chat route related to conversation context handling. The N+1 query pattern for loading chat history was resolved by joining sessions and messages in a single query. Protocol context injection was also fixed to pass the correct protocol data to the AI system prompt.
+
+### Logger Migration (console to pino)
+
+All `console.log`, `console.warn`, and `console.error` calls across API routes and library code have been replaced with a structured `pino` logger (`src/lib/logger.ts`). In production, logs are emitted as JSON for machine parsing. In development, `pino-pretty` provides colorized human-readable output. The log level is controlled by the `LOG_LEVEL` environment variable (defaults to `info` in production, `debug` in development).
+
+### ANTHROPIC_MODEL Environment Variable
+
+The Claude model used for chat is now configurable via the `ANTHROPIC_MODEL` environment variable instead of being hardcoded. This makes it easier to switch between Sonnet, Haiku, and Opus without code changes, partially addressing cost optimization recommendation OPT-4 from Section 3.8.
+
+---
+
 ## 1. Security Audit
 
 ### 1.1 Methodology

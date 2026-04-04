@@ -111,30 +111,39 @@ export async function DELETE(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
     const { user, supabase } = await requireAuth();
-
-    // ── 1. Delete auth user FIRST via service-role client ──
-    // If this fails the user's application data stays intact and they
-    // can still sign in — much safer than deleting data first and
-    // leaving an orphaned auth account.
     const admin = getAdminClient();
-    const { error: authError } = await admin.auth.admin.deleteUser(user.id);
 
-    if (authError) {
-      return apiError(authError.message, 500);
-    }
+    // ── 1. Delete application data FIRST (child → parent for FK order) ──
+    // If any delete fails, the user can still sign in and retry.
+    // This is safer than deleting auth first and leaving orphaned data.
 
-    // ── 2. Delete application data (child → parent for FK order) ──
+    // Protocol favorites
+    const { error: favError } = await supabase
+      .from("protocol_favorites")
+      .delete()
+      .eq("user_id", user.id);
+    if (favError) throw new Error(`Failed to delete favorites: ${favError.message}`);
+
     // Protocol completions
-    await supabase
+    const { error: compError } = await supabase
       .from("protocol_completions")
       .delete()
       .eq("user_id", user.id);
+    if (compError) throw new Error(`Failed to delete completions: ${compError.message}`);
+
+    // Protocol notes
+    const { error: notesError } = await supabase
+      .from("protocol_notes")
+      .delete()
+      .eq("user_id", user.id);
+    if (notesError) throw new Error(`Failed to delete notes: ${notesError.message}`);
 
     // User protocols
-    await supabase
+    const { error: upError } = await supabase
       .from("user_protocols")
       .delete()
       .eq("user_id", user.id);
+    if (upError) throw new Error(`Failed to delete user protocols: ${upError.message}`);
 
     // Chat messages (via sessions)
     const { data: sessions } = await supabase
@@ -144,29 +153,41 @@ export async function DELETE(request: NextRequest) {
 
     if (sessions && sessions.length > 0) {
       const sessionIds = sessions.map((s) => s.id);
-      await supabase
+      const { error: msgError } = await supabase
         .from("chat_messages")
         .delete()
         .in("session_id", sessionIds);
+      if (msgError) throw new Error(`Failed to delete messages: ${msgError.message}`);
     }
 
     // Chat sessions
-    await supabase
+    const { error: sessError } = await supabase
       .from("chat_sessions")
       .delete()
       .eq("user_id", user.id);
+    if (sessError) throw new Error(`Failed to delete sessions: ${sessError.message}`);
 
     // Survey responses
-    await supabase
+    const { error: surveyError } = await supabase
       .from("survey_responses")
       .delete()
       .eq("user_id", user.id);
+    if (surveyError) throw new Error(`Failed to delete survey: ${surveyError.message}`);
 
     // User profile row
-    await supabase
+    const { error: userError } = await supabase
       .from("users")
       .delete()
       .eq("id", user.id);
+    if (userError) throw new Error(`Failed to delete user profile: ${userError.message}`);
+
+    // ── 2. Delete auth user LAST ──
+    // Only after all data is cleaned up. If this fails, the user
+    // has no data but can still sign in — they'll just see a fresh state.
+    const { error: authError } = await admin.auth.admin.deleteUser(user.id);
+    if (authError) {
+      return apiError(`Data deleted but auth removal failed: ${authError.message}`, 500);
+    }
 
     return NextResponse.json({ status: "deleted" });
   } catch (err) {

@@ -8,6 +8,7 @@
 import { getEmbeddings } from "@/lib/pinecone/embeddings";
 import { upsertVectors, type VectorMetadata } from "@/lib/pinecone/client";
 import { getSupabaseAdmin as getSupabase } from "./shared";
+import logger from "@/lib/logger";
 
 /**
  * Process un-embedded chunks: generate embeddings and store in Pinecone
@@ -22,16 +23,16 @@ export async function runEmbeddingPipeline(batchSize = 50) {
     .limit(batchSize);
 
   if (error) {
-    console.error("Error fetching chunks:", error);
+    logger.error({ err: error }, "Error fetching chunks");
     return { processed: 0, errors: 1 };
   }
 
   if (!chunks || chunks.length === 0) {
-    console.log("No chunks to embed");
+    logger.info("No chunks to embed");
     return { processed: 0, errors: 0 };
   }
 
-  console.log(`Processing ${chunks.length} chunks...`);
+  logger.info({ count: chunks.length }, "Processing chunks");
 
   // Generate embeddings in batch
   const texts = chunks.map((c) => c.content);
@@ -40,7 +41,7 @@ export async function runEmbeddingPipeline(batchSize = 50) {
   try {
     embeddings = await getEmbeddings(texts);
   } catch (err) {
-    console.error("Error generating embeddings:", err);
+    logger.error({ err }, "Error generating embeddings");
     return { processed: 0, errors: chunks.length };
   }
 
@@ -59,24 +60,32 @@ export async function runEmbeddingPipeline(batchSize = 50) {
     } as VectorMetadata,
   }));
 
-  // Upsert to Pinecone
+  // Upsert to Pinecone — only mark chunks as embedded AFTER successful upsert
   try {
     await upsertVectors(vectors);
   } catch (err) {
-    console.error("Error upserting to Pinecone:", err);
+    const failedIds = chunks.map((c) => c.id);
+    logger.error({ err, failedIds }, "Error upserting to Pinecone — chunks NOT marked as embedded");
     return { processed: 0, errors: chunks.length };
   }
 
-  // Update Supabase chunks with pinecone_id
+  // Pinecone upsert succeeded — now safe to update Supabase
+  let updateErrors = 0;
   for (const chunk of chunks) {
-    await supabase
+    const { error: updateErr } = await supabase
       .from("content_chunks")
       .update({ pinecone_id: chunk.id })
       .eq("id", chunk.id);
+
+    if (updateErr) {
+      updateErrors++;
+      logger.error({ err: updateErr, chunkId: chunk.id }, "Failed to mark chunk as embedded in Supabase");
+    }
   }
 
-  console.log(`Embedded and stored ${chunks.length} vectors`);
-  return { processed: chunks.length, errors: 0 };
+  const successCount = chunks.length - updateErrors;
+  logger.info({ successCount, updateErrors }, "Embedded and stored vectors");
+  return { processed: successCount, errors: updateErrors };
 }
 
 /**
@@ -102,8 +111,6 @@ export async function runFullEmbeddingPipeline() {
     }
   }
 
-  console.log(
-    `Embedding pipeline complete: ${totalProcessed} processed, ${totalErrors} errors`
-  );
+  logger.info({ totalProcessed, totalErrors }, "Embedding pipeline complete");
   return { totalProcessed, totalErrors };
 }

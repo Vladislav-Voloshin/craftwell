@@ -3,10 +3,19 @@
  *
  * Tests email sign-up, sign-in, phone OTP UI, Google OAuth button,
  * auth redirects, and sign-out.
+ *
+ * NOTE: The auth page uses a custom segmented control (plain <button>
+ * elements inside a .bg-muted container) — NOT role="tab" / role="tabpanel".
+ * Floating-label inputs use placeholder=" " with <label>, so use getByLabel().
  */
 
 import { test, expect } from "@playwright/test";
 import "./helpers";
+
+/** Click a segmented-control tab button */
+async function clickAuthTab(page: import("@playwright/test").Page, label: string) {
+  await page.locator(".bg-muted.p-1 button", { hasText: label }).click();
+}
 
 test.describe("Auth Page", () => {
   test.beforeEach(async ({ page }) => {
@@ -16,7 +25,7 @@ test.describe("Auth Page", () => {
   test("renders auth page with Craftwell logo", async ({ page }) => {
     await expect(page.getByText("Welcome")).toBeVisible();
     await expect(
-      page.getByText("Sign in to access your health protocols")
+      page.getByText("Science-based health protocols")
     ).toBeVisible();
   });
 
@@ -33,25 +42,26 @@ test.describe("Auth Page", () => {
   });
 
   test("has Sign In and Sign Up tabs", async ({ page }) => {
-    await expect(page.getByRole("tab", { name: "Sign In" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Sign Up" })).toBeVisible();
+    const tabBar = page.locator(".bg-muted.p-1");
+    await expect(tabBar.getByText("Sign In")).toBeVisible();
+    await expect(tabBar.getByText("Sign Up")).toBeVisible();
   });
 
   test("Sign In tab shows email and password fields", async ({ page }) => {
-    await page.getByRole("tab", { name: "Sign In" }).click();
-    await expect(page.getByPlaceholder("Email")).toBeVisible();
-    await expect(page.getByPlaceholder("Password")).toBeVisible();
+    await clickAuthTab(page, "Sign In");
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+    // Submit button is the last "Sign In" button (segmented control is first)
     await expect(
-      page.getByRole("button", { name: "Sign In" })
+      page.getByRole("button", { name: "Sign In" }).last()
     ).toBeVisible();
   });
 
   test("Sign Up tab shows email and password fields", async ({ page }) => {
-    await page.getByRole("tab", { name: "Sign Up" }).click();
-    const signUpPanel = page.getByRole("tabpanel", { name: "Sign Up" });
-    await expect(signUpPanel.getByPlaceholder("Email")).toBeVisible();
+    await clickAuthTab(page, "Sign Up");
+    await expect(page.getByLabel("Email")).toBeVisible();
     await expect(
-      signUpPanel.getByPlaceholder("Password (min 6 characters)")
+      page.getByLabel(/Password/)
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Create Account" })
@@ -59,7 +69,7 @@ test.describe("Auth Page", () => {
   });
 
   test("can switch to Phone auth mode", async ({ page }) => {
-    await page.getByRole("tab", { name: "Sign In" }).click();
+    await clickAuthTab(page, "Sign In");
     await page.getByRole("button", { name: "Phone" }).click();
 
     await expect(page.getByPlaceholder(/555/)).toBeVisible();
@@ -70,8 +80,8 @@ test.describe("Auth Page", () => {
 
   test("can switch between Email and Phone modes", async ({ page }) => {
     // Start with email
-    await page.getByRole("tab", { name: "Sign In" }).click();
-    await expect(page.getByPlaceholder("Email")).toBeVisible();
+    await clickAuthTab(page, "Sign In");
+    await expect(page.getByLabel("Email")).toBeVisible();
 
     // Switch to phone
     await page.getByRole("button", { name: "Phone" }).click();
@@ -79,15 +89,14 @@ test.describe("Auth Page", () => {
 
     // Switch back to email
     await page.getByRole("button", { name: "Email" }).click();
-    await expect(page.getByPlaceholder("Email")).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
   });
 
   test("shows error for invalid email sign-in", async ({ page }) => {
-    await page.getByRole("tab", { name: "Sign In" }).click();
-    // Sign In tab is default so its inputs are visible
-    await page.getByPlaceholder("Email").first().fill("nonexistent@test.com");
-    await page.getByPlaceholder("Password").first().fill("wrongpassword");
-    await page.getByRole("button", { name: "Sign In" }).click();
+    await clickAuthTab(page, "Sign In");
+    await page.getByLabel("Email").fill("nonexistent@test.com");
+    await page.getByLabel("Password", { exact: true }).fill("wrongpassword");
+    await page.getByRole("button", { name: "Sign In" }).last().click();
 
     // Should show an error message (Supabase API call may take time)
     await expect(page.getByText(/invalid|error|credentials/i)).toBeVisible({
@@ -96,10 +105,9 @@ test.describe("Auth Page", () => {
   });
 
   test("shows error for short password on sign up", async ({ page }) => {
-    await page.getByRole("tab", { name: "Sign Up" }).click();
-    const signUpPanel = page.getByRole("tabpanel", { name: "Sign Up" });
-    await signUpPanel.getByPlaceholder("Email").fill("short@test.com");
-    await signUpPanel.getByPlaceholder("Password").fill("12");
+    await clickAuthTab(page, "Sign Up");
+    await page.getByLabel("Email").fill("short@test.com");
+    await page.getByLabel(/Password/).fill("12");
     await page.getByRole("button", { name: "Create Account" }).click();
 
     // Supabase requires min 6 chars
@@ -109,7 +117,7 @@ test.describe("Auth Page", () => {
   });
 
   test("phone OTP send button disabled when phone empty", async ({ page }) => {
-    await page.getByRole("tab", { name: "Sign In" }).click();
+    await clickAuthTab(page, "Sign In");
     await page.getByRole("button", { name: "Phone" }).click();
 
     const sendBtn = page.getByRole("button", {
@@ -121,7 +129,7 @@ test.describe("Auth Page", () => {
   test("phone OTP send button enabled when phone entered", async ({
     page,
   }) => {
-    await page.getByRole("tab", { name: "Sign In" }).click();
+    await clickAuthTab(page, "Sign In");
     await page.getByRole("button", { name: "Phone" }).click();
 
     await page.getByPlaceholder(/555/).fill("+15551234567");
@@ -161,6 +169,6 @@ test.describe("Auth Redirects", () => {
   test("landing page is accessible without auth", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL("/");
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
   });
 });

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { StreaksResponse as StreakData } from "@/lib/types/database";
+import clientLogger from "@/lib/client-logger";
 
 export function useProtocolCompletions(
   protocolId: string,
@@ -22,7 +23,7 @@ export function useProtocolCompletions(
         setCompletedToolIds(new Set(data.completed_tool_ids));
       }
     } catch (err) {
-      console.warn("[Completions] Failed to fetch:", err);
+      clientLogger.warn("[Completions] Failed to fetch:", err);
     }
   }, [isLoggedIn, isActive, protocolId]);
 
@@ -36,7 +37,7 @@ export function useProtocolCompletions(
         setStreakData(data);
       }
     } catch (err) {
-      console.warn("[Streaks] Failed to fetch:", err);
+      clientLogger.warn("[Streaks] Failed to fetch:", err);
     }
   }, [isLoggedIn, isActive, protocolId]);
 

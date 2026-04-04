@@ -15,10 +15,10 @@ import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
 test.describe("P0 Happy Path: Returning User Login → Protocols", () => {
   test("user can sign in and land on protocols page", async ({ page }) => {
     await page.goto("/auth");
-    await page.getByRole("tab", { name: "Sign In" }).click();
-    await page.getByPlaceholder("Email").fill(TEST_USER.email);
-    await page.getByPlaceholder("Password").fill(TEST_USER.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
+    await page.locator(".bg-muted.p-1 button", { hasText: "Sign In" }).click();
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).last().click();
 
     await page.waitForURL("**/protocols", { timeout: 15000 });
     await expect(page).toHaveURL(/\/protocols/);
@@ -157,10 +157,10 @@ test.describe("P0 Happy Path: Sign Out & Re-Sign In", () => {
     if (!page.url().includes("/auth")) {
       await page.goto("/auth");
     }
-    await page.getByRole("tab", { name: "Sign In" }).click();
-    await page.getByPlaceholder("Email").fill(TEST_USER.email);
-    await page.getByPlaceholder("Password").fill(TEST_USER.password);
-    await page.getByRole("button", { name: "Sign In" }).click();
+    await page.locator(".bg-muted.p-1 button", { hasText: "Sign In" }).click();
+    await page.getByLabel("Email").fill(TEST_USER.email);
+    await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
+    await page.getByRole("button", { name: "Sign In" }).last().click();
 
     await page.waitForURL("**/protocols", { timeout: 15000 });
     await expect(page).toHaveURL(/\/protocols/);
@@ -170,16 +170,17 @@ test.describe("P0 Happy Path: Sign Out & Re-Sign In", () => {
 test.describe("P0 Happy Path: Landing Page → Auth Flow", () => {
   test("new visitor can navigate from landing to auth", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Craftwell")).toBeVisible();
+    await expect(page.getByText("Craftwell").first()).toBeVisible();
 
     // Click Get Started
-    const cta = page.getByRole("link", { name: /get started/i });
+    const cta = page.getByRole("link", { name: /get started/i }).first();
     await cta.click();
     await expect(page).toHaveURL(/\/auth/);
 
-    // Auth page loads with sign in/up tabs
-    await expect(page.getByRole("tab", { name: "Sign In" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Sign Up" })).toBeVisible();
+    // Auth page loads with sign in/up segmented control
+    const tabBar = page.locator(".bg-muted.p-1");
+    await expect(tabBar.getByText("Sign In")).toBeVisible();
+    await expect(tabBar.getByText("Sign Up")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /continue with google/i })
     ).toBeVisible();
