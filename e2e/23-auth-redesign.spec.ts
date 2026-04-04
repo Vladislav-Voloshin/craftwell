@@ -14,8 +14,9 @@ test.describe("Auth Page Redesign", () => {
   });
 
   test("displays Craftwell branding and tagline", async ({ page }) => {
+    // CardTitle renders as <div>, not a semantic heading, so use getByText
     await expect(
-      page.getByRole("heading", { name: /welcome to craftwell/i })
+      page.getByText(/welcome to craftwell/i).first()
     ).toBeVisible();
 
     await expect(

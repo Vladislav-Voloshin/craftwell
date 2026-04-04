@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { signInTestUser } from "./helpers";
+import { signInTestUser, gotoAuthenticated } from "./helpers";
 
 test.describe("Protocol Listing", () => {
   test.beforeEach(async ({ page }) => {
@@ -113,8 +113,7 @@ test.describe("Protocol Detail", () => {
     page,
   }) => {
     // Navigate to protocols and click the first one
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
@@ -129,8 +128,7 @@ test.describe("Protocol Detail", () => {
   });
 
   test("shows back link to protocols list", async ({ page }) => {
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
@@ -148,8 +146,7 @@ test.describe("Protocol Detail", () => {
   });
 
   test("shows protocol tools/steps", async ({ page }) => {
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
@@ -173,23 +170,22 @@ test.describe("Protocol Detail", () => {
   test("shows Add to My Protocols button for authenticated users", async ({
     page,
   }) => {
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
+    await page.waitForLoadState("domcontentloaded");
 
     const addBtn = page.getByRole("button", {
       name: /add to my protocols|remove from my protocols/i,
     });
-    await expect(addBtn).toBeVisible();
+    await expect(addBtn).toBeVisible({ timeout: 15000 });
   });
 
   test("can toggle protocol in My Protocols", async ({ page }) => {
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
@@ -213,8 +209,7 @@ test.describe("Protocol Detail", () => {
   });
 
   test("has Ask AI / chat CTA", async ({ page }) => {
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });

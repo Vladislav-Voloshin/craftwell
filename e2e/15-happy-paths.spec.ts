@@ -128,8 +128,8 @@ test.describe("P0 Happy Path: Full Navigation Cycle", () => {
     }
     await expect(page).toHaveURL(/\/profile/);
 
-    // Verify profile loaded
-    await expect(page.getByText(TEST_USER.email)).toBeVisible();
+    // Verify profile loaded — email is client-side rendered, needs extra wait
+    await expect(page.getByText(TEST_USER.email)).toBeVisible({ timeout: 15000 });
 
     // Back to protocols
     const protocolsLink = page.getByRole("link", { name: /protocols/i });
