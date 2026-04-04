@@ -110,10 +110,10 @@ test.describe("Auth Page", () => {
     await page.getByLabel(/Password/).fill("12");
     await page.getByRole("button", { name: "Create Account" }).click();
 
-    // Supabase requires min 6 chars
-    await expect(page.getByText(/password|characters|short|least/i)).toBeVisible({
-      timeout: 10000,
-    });
+    // ST-203 added password hints (e.g. "At least 6 characters") that always
+    // show in signup mode — use the error container class to avoid strict-mode
+    // violations from multiple matching elements
+    await expect(page.locator(".text-destructive")).toBeVisible({ timeout: 10000 });
   });
 
   test("phone OTP send button disabled when phone empty", async ({ page }) => {
