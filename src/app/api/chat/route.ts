@@ -66,14 +66,18 @@ export async function POST(request: NextRequest) {
     // Fetch conversation history for multi-turn context
     const history = await fetchConversationHistory(supabase, currentSessionId!);
 
-    // Get relevant context via RAG (degrades gracefully if Pinecone is unavailable)
-    const { contextText, sources, ragUnavailable } = await fetchRAGContext(
-      trimmedMessage,
-      log,
-    );
+    // Get relevant context via RAG + user profile in parallel
+    const [{ contextText, sources, ragUnavailable }, { data: survey }] = await Promise.all([
+      fetchRAGContext(trimmedMessage, log),
+      supabase
+        .from("survey_responses")
+        .select("focus_areas, health_goals")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
 
-    // Build system prompt
-    let systemPrompt = buildSystemPrompt(contextText, ragUnavailable);
+    // Build system prompt with optional user profile personalisation
+    let systemPrompt = buildSystemPrompt(contextText, ragUnavailable, survey ?? undefined);
 
     if (protocol_id) {
       // Single joined query to avoid N+1 (was 2 separate queries)
@@ -296,10 +300,11 @@ async function fetchRAGContext(query: string, log: Pick<typeof logger, "warn">) 
   return { contextText, sources, ragUnavailable };
 }
 
-/** Build the system prompt with optional RAG context. */
+/** Build the system prompt with optional RAG context and user profile. */
 function buildSystemPrompt(
   contextText: string,
   ragUnavailable: boolean,
+  survey?: { focus_areas?: string[] | null; health_goals?: string[] | null },
 ): string {
   let prompt = `You are Craftwell, a science-based health adviser.
 You provide evidence-based, practical health advice drawn from neuroscience and peer-reviewed research.
@@ -311,6 +316,23 @@ Key guidelines:
 - Always include safety disclaimers for supplements, exercise, or medical topics
 - If asked about something outside your knowledge, say so honestly
 - Be concise but thorough`;
+
+  // Personalise based on the user's onboarding survey
+  const focusAreas = survey?.focus_areas?.filter(Boolean) ?? [];
+  const healthGoals = survey?.health_goals?.filter(Boolean) ?? [];
+
+  if (focusAreas.length > 0 || healthGoals.length > 0) {
+    prompt += "\n\nUser profile (tailor your responses to their specific goals):";
+    if (healthGoals.length > 0) {
+      prompt += `\n- Health goals: ${healthGoals.join(", ")}`;
+    }
+    if (focusAreas.length > 0) {
+      prompt += `\n- Primary focus areas: ${focusAreas.join(", ")}`;
+    }
+    prompt +=
+      "\nPrioritise protocols and advice relevant to these goals. When giving recommendations, " +
+      "connect them back to the user's stated objectives where appropriate.";
+  }
 
   if (ragUnavailable) {
     prompt +=
