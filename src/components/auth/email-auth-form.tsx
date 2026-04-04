@@ -45,6 +45,31 @@ function FloatingInput({
   );
 }
 
+function PasswordHints({ password }: { password: string }) {
+  const checks = [
+    { label: "At least 6 characters", met: password.length >= 6 },
+    { label: "Contains a number", met: /\d/.test(password) },
+    { label: "Contains a letter", met: /[a-zA-Z]/.test(password) },
+  ];
+
+  return (
+    <ul className="space-y-1 pl-0.5">
+      {checks.map(({ label, met }) => (
+        <li key={label} className="flex items-center gap-1.5 text-xs">
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+              met ? "bg-emerald-500" : "bg-muted-foreground/30"
+            }`}
+          />
+          <span className={met ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+            {label}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function EmailAuthForm({
   email,
   password,
@@ -63,13 +88,16 @@ export function EmailAuthForm({
         value={email}
         onChange={onEmailChange}
       />
-      <FloatingInput
-        id="password"
-        type="password"
-        label={mode === "signup" ? "Password (min 6 characters)" : "Password"}
-        value={password}
-        onChange={onPasswordChange}
-      />
+      <div className="space-y-2">
+        <FloatingInput
+          id="password"
+          type="password"
+          label="Password"
+          value={password}
+          onChange={onPasswordChange}
+        />
+        {mode === "signup" && <PasswordHints password={password} />}
+      </div>
       <Button className="w-full" onClick={onSubmit} disabled={loading}>
         {loading
           ? mode === "signup" ? "Creating account..." : "Signing in..."
