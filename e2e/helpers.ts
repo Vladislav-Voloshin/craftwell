@@ -75,21 +75,30 @@ export async function signInTestUser(page: Page) {
 
 /**
  * Navigate to a protected page, re-authenticating if redirected to /auth.
+ * Retries on net::ERR_ABORTED (CI flakiness) and handles session expiry.
  * Use this instead of bare page.goto() for authenticated routes.
  */
 export async function gotoAuthenticated(page: Page, path: string) {
-  await page.goto(path);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
 
-  // If we got redirected to /auth, the session expired — re-auth and retry
-  if (page.url().includes("/auth")) {
-    await signInTestUser(page);
-    await page.goto(path);
+      // If we got redirected to /auth, the session expired — re-auth and retry
+      if (page.url().includes("/auth")) {
+        await signInTestUser(page);
+        await page.goto(path, { waitUntil: "domcontentloaded" });
+      }
+
+      // Final check — if still on /auth something is fundamentally wrong
+      await page.waitForURL((url) => !url.pathname.startsWith("/auth"), {
+        timeout: 10000,
+      });
+      return; // success
+    } catch {
+      if (attempt === 2) throw new Error(`gotoAuthenticated(${path}): failed after 3 attempts`);
+      await page.waitForTimeout(1500);
+    }
   }
-
-  // Final check — if still on /auth something is fundamentally wrong
-  await page.waitForURL((url) => !url.pathname.startsWith("/auth"), {
-    timeout: 10000,
-  });
 }
 
 /**
