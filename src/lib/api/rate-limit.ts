@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import * as Sentry from "@sentry/nextjs";
 import logger from "@/lib/logger";
 
 const WINDOW_MS = 60_000; // 1 minute
@@ -29,7 +30,13 @@ export async function checkRateLimit(
 
     count = result.count;
   } catch (err) {
-    logger.warn({ err, userId }, "Rate limiter DB query failed, allowing request (fail-open)");
+    // Log at error level (not warn) — a broken rate limiter is a security concern.
+    // Capture to Sentry so the on-call engineer is alerted (PB-134).
+    logger.error({ err, userId }, "Rate limiter DB query failed, allowing request (fail-open)");
+    Sentry.captureException(err, {
+      extra: { userId, context: "rate-limit-db-query" },
+      tags: { component: "rate-limiter" },
+    });
     return null;
   }
 
