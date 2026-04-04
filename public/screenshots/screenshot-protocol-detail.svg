@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#09090b"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="390" height="44" fill="#09090b"/>
+  <text x="20" y="28" font-size="12" fill="#fff" font-weight="600">9:41</text>
+  <rect x="320" y="14" width="50" height="16" rx="4" fill="#333"/>
+  <rect x="322" y="16" width="42" height="12" rx="3" fill="#22c55e"/>
+
+  <!-- Back nav -->
+  <text x="16" y="72" font-size="13" fill="#6366f1">← Protocols</text>
+
+  <!-- Hero section -->
+  <rect x="0" y="82" width="390" height="130" fill="#18181b"/>
+  <rect x="0" y="82" width="5" height="130" fill="#6366f1"/>
+  <!-- Category badge -->
+  <rect x="20" y="96" width="58" height="22" rx="11" fill="#6366f1" fill-opacity="0.2"/>
+  <text x="28" y="111" font-size="10" fill="#6366f1" font-weight="600">◐ Sleep</text>
+  <!-- Title -->
+  <text x="20" y="143" font-size="22" fill="#fff" font-weight="700">Morning Light</text>
+  <text x="20" y="163" font-size="22" fill="#fff" font-weight="700">Protocol</text>
+  <!-- Meta chips -->
+  <rect x="20" y="176" width="44" height="20" rx="10" fill="#27272a"/>
+  <text x="26" y="189" font-size="9" fill="#a1a1aa">Easy</text>
+  <rect x="70" y="176" width="62" height="20" rx="10" fill="#27272a"/>
+  <text x="76" y="189" font-size="9" fill="#a1a1aa">5 min/day</text>
+  <rect x="138" y="176" width="60" height="20" rx="10" fill="#27272a"/>
+  <text x="144" y="189" font-size="9" fill="#a1a1aa">Daily habit</text>
+
+  <!-- Action buttons -->
+  <rect x="16" y="224" width="168" height="40" rx="10" fill="#6366f1"/>
+  <text x="65" y="248" font-size="13" fill="#fff" font-weight="600">Ask AI →</text>
+  <rect x="192" y="224" width="80" height="40" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="210" y="248" font-size="13" fill="#e4e4e7">♡ Save</text>
+  <rect x="280" y="224" width="94" height="40" rx="10" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="290" y="248" font-size="13" fill="#e4e4e7">↑ Share</text>
+
+  <!-- Description -->
+  <text x="16" y="290" font-size="14" fill="#e4e4e7" font-weight="600">About this Protocol</text>
+  <text x="16" y="310" font-size="12" fill="#71717a">Get sunlight exposure in your eyes within</text>
+  <text x="16" y="326" font-size="12" fill="#71717a">30 minutes of waking. This anchors your</text>
+  <text x="16" y="342" font-size="12" fill="#71717a">circadian rhythm, boosts morning cortisol,</text>
+  <text x="16" y="358" font-size="12" fill="#71717a">and improves alertness throughout the day.</text>
+
+  <!-- Divider -->
+  <rect x="16" y="374" width="358" height="1" fill="#27272a"/>
+
+  <!-- Tools section -->
+  <text x="16" y="398" font-size="14" fill="#e4e4e7" font-weight="600">Protocol Steps</text>
+
+  <!-- Tool 1 -->
+  <rect x="16" y="410" width="358" height="72" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <rect x="16" y="410" width="3" height="72" rx="1.5" fill="#6366f1"/>
+  <text x="28" y="432" font-size="11" fill="#e4e4e7" font-weight="600">1. Step outside within 30 min of waking</text>
+  <rect x="348" y="420" width="18" height="18" rx="9" fill="#22c55e" fill-opacity="0.2"/>
+  <text x="353" y="433" font-size="10" fill="#22c55e">✓</text>
+  <text x="28" y="450" font-size="10" fill="#71717a">2–10 min of direct outdoor light exposure.</text>
+  <text x="28" y="464" font-size="10" fill="#71717a">No sunglasses. Overcast days still work.</text>
+  <text x="28" y="476" font-size="9" fill="#52525b">Effectiveness: ████████░░ High</text>
+
+  <!-- Tool 2 -->
+  <rect x="16" y="490" width="358" height="72" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <rect x="16" y="490" width="3" height="72" rx="1.5" fill="#6366f1" fill-opacity="0.5"/>
+  <text x="28" y="512" font-size="11" fill="#e4e4e7" font-weight="600">2. Avoid bright artificial light after dark</text>
+  <text x="28" y="530" font-size="10" fill="#71717a">Dim overhead lights 2–3 hrs before sleep.</text>
+  <text x="28" y="544" font-size="10" fill="#71717a">Use red/orange light spectrum if possible.</text>
+  <text x="28" y="556" font-size="9" fill="#52525b">Effectiveness: ██████░░░░ Medium</text>
+
+  <!-- Tool 3 -->
+  <rect x="16" y="570" width="358" height="72" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <rect x="16" y="570" width="3" height="72" rx="1.5" fill="#6366f1" fill-opacity="0.3"/>
+  <text x="28" y="592" font-size="11" fill="#e4e4e7" font-weight="600">3. Bonus: Afternoon "second light" viewing</text>
+  <text x="28" y="610" font-size="10" fill="#71717a">10 min of outdoor light around sunset.</text>
+  <text x="28" y="624" font-size="10" fill="#71717a">Signals end of day to your circadian clock.</text>
+  <text x="28" y="636" font-size="9" fill="#52525b">Effectiveness: █████░░░░░ Moderate</text>
+
+  <!-- Daily completion streak -->
+  <rect x="16" y="654" width="358" height="72" rx="12" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+  <text x="28" y="676" font-size="13" fill="#e4e4e7" font-weight="600">Your Streak</text>
+  <text x="300" y="676" font-size="22" fill="#f59e0b" font-weight="700">🔥 7</text>
+  <text x="300" y="690" font-size="9" fill="#71717a">days</text>
+  <!-- Mini streak dots -->
+  <circle cx="28" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="46" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="64" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="82" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="100" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="118" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="136" cy="700" r="7" fill="#22c55e"/>
+  <circle cx="154" cy="700" r="7" fill="#27272a"/>
+  <text x="28" y="714" font-size="8" fill="#52525b">M</text>
+  <text x="46" y="714" font-size="8" fill="#52525b">T</text>
+  <text x="64" y="714" font-size="8" fill="#52525b">W</text>
+  <text x="82" y="714" font-size="8" fill="#52525b">T</text>
+  <text x="100" y="714" font-size="8" fill="#52525b">F</text>
+  <text x="118" y="714" font-size="8" fill="#52525b">S</text>
+  <text x="136" y="714" font-size="8" fill="#52525b">S</text>
+
+  <!-- Mark Complete button -->
+  <rect x="16" y="736" width="358" height="44" rx="10" fill="#22c55e"/>
+  <text x="135" y="762" font-size="14" fill="#fff" font-weight="600">Mark Complete Today</text>
+
+  <!-- Bottom nav -->
+  <rect x="0" y="788" width="390" height="56" fill="#09090b"/>
+  <rect x="0" y="788" width="390" height="1" fill="#27272a"/>
+  <text x="44" y="820" font-size="10" fill="#6366f1" font-weight="600" text-anchor="middle">Protocols</text>
+  <text x="130" y="820" font-size="10" fill="#52525b" text-anchor="middle">Chat</text>
+  <text x="260" y="820" font-size="10" fill="#52525b" text-anchor="middle">Profile</text>
+  <rect x="30" y="788" width="28" height="2" rx="1" fill="#6366f1"/>
+
+  <!-- Home indicator -->
+  <rect x="155" y="828" width="80" height="4" rx="2" fill="#fff" fill-opacity="0.3"/>
+</svg>
