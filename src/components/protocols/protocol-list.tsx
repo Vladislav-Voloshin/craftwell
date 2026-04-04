@@ -15,6 +15,7 @@ import {
   Target,
   Smile,
   ClipboardList,
+  Sparkles,
 } from "lucide-react";
 import {
   Card,
@@ -70,11 +71,13 @@ export function ProtocolList({
   protocols,
   favoriteIds = [],
   isLoggedIn = false,
+  recommendedProtocols = [],
 }: {
   categories: ProtocolCategory[];
   protocols: Protocol[];
   favoriteIds?: string[];
   isLoggedIn?: boolean;
+  recommendedProtocols?: Protocol[];
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
@@ -108,6 +111,53 @@ export function ProtocolList({
 
   return (
     <div className="space-y-4">
+      {/* Recommended for You strip */}
+      {recommendedProtocols.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">Recommended for You</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
+            {recommendedProtocols.map((protocol) => {
+              const meta = categoryMeta[protocol.category] || defaultMeta;
+              const Icon = meta.icon;
+              return (
+                <Link
+                  key={protocol.id}
+                  href={`/protocols/${protocol.slug}`}
+                  className="shrink-0 w-52"
+                >
+                  <Card className="shadow-sm dark:shadow-none hover:border-foreground/20 transition-all cursor-pointer group overflow-hidden h-full">
+                    <div className="flex">
+                      <div className={cn("w-1 shrink-0 rounded-l", meta.bg.replace("/10", "/40"))} />
+                      <div className="flex-1 min-w-0 p-3 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-5 h-5 rounded flex items-center justify-center shrink-0", meta.bg)}>
+                            <Icon className={cn("w-3 h-3", meta.accent)} />
+                          </div>
+                          <span className="text-xs font-semibold truncate group-hover:text-primary transition-colors">
+                            {protocol.title}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                          {protocol.description}
+                        </p>
+                        {protocol.time_commitment && (
+                          <span className="text-xs text-muted-foreground/70">
+                            {protocol.time_commitment}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Search bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

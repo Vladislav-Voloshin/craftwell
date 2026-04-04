@@ -90,6 +90,13 @@ export default async function ProtocolsPage() {
     return (a.effectiveness_rank || 999) - (b.effectiveness_rank || 999);
   });
 
+  // Top 5 protocols from the user's focus categories for the Recommended strip
+  const recommendedProtocols = userFocusCategories.length > 0
+    ? sortedProtocols
+        .filter((p) => userFocusCategories.includes(p.category))
+        .slice(0, 5)
+    : [];
+
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
@@ -107,6 +114,7 @@ export default async function ProtocolsPage() {
           protocols={sortedProtocols}
           favoriteIds={favoriteIds}
           isLoggedIn={!!user}
+          recommendedProtocols={recommendedProtocols}
         />
       </div>
     </AppShell>
