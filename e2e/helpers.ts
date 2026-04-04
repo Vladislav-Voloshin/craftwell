@@ -40,20 +40,23 @@ export async function signUpTestUser(page: Page) {
  * once before giving up.
  */
 export async function signInTestUser(page: Page) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    await page.goto("/auth");
-    // Default tab is "Sign In", but click it explicitly for clarity
-    await clickAuthTab(page, "Sign In");
-    await page.getByLabel("Email").fill(TEST_USER.email);
-    await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
-    // Two "Sign In" buttons exist: segmented control (.bg-muted) and form submit.
-    // Use .last() to target the submit button.
-    await page.getByRole("button", { name: "Sign In" }).last().click();
-
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      // page.goto can itself throw net::ERR_ABORTED in CI under load;
+      // wrapping the full flow in the try ensures it is properly retried.
+      await page.goto("/auth", { waitUntil: "domcontentloaded" });
+
+      // Default tab is "Sign In", but click it explicitly for reliability
+      await clickAuthTab(page, "Sign In");
+      await page.getByLabel("Email").fill(TEST_USER.email);
+      await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
+      // Two "Sign In" buttons exist: segmented control (.bg-muted) and form submit.
+      // Use .last() to target the submit button.
+      await page.getByRole("button", { name: "Sign In" }).last().click();
+
       // Wait for redirect away from /auth
       await page.waitForURL((url) => !url.pathname.startsWith("/auth"), {
-        timeout: 10000,
+        timeout: 12000,
       });
 
       // If redirected to onboarding, complete it so tests land on /protocols
@@ -63,8 +66,9 @@ export async function signInTestUser(page: Page) {
 
       return; // success
     } catch {
-      if (attempt === 1) throw new Error("signInTestUser: failed after 2 attempts");
-      // Retry on next iteration
+      if (attempt === 2) throw new Error("signInTestUser: failed after 3 attempts");
+      // Brief pause before retry to let the server recover
+      await page.waitForTimeout(1500);
     }
   }
 }
@@ -101,31 +105,41 @@ export async function signInAndOnboard(page: Page) {
 }
 
 /**
- * Complete the 4-step onboarding wizard
+ * Complete the onboarding wizard.
+ * Handles both the legacy 4-step flow and the current 2-step flow (PB-174).
  */
 export async function completeOnboarding(page: Page) {
-  // Step 0: Health goals — click at least one
-  await page.waitForSelector("text=What are your health goals");
+  // Step 1 — always present: Health goals + (2-step) or just goals (4-step)
+  await page.waitForSelector("text=What are your health goals", { timeout: 10000 });
   await page.getByText("Better Sleep").click();
   await page.getByText("More Energy").click();
   await page.getByRole("button", { name: "Next" }).click();
 
-  // Step 1: Sleep quality + Stress level (sliders default to middle, just advance)
-  await page.waitForSelector("text=sleep");
-  await page.getByRole("button", { name: "Next" }).click();
+  // Step 2 — detect which flow we're on
+  await page.waitForLoadState("domcontentloaded");
+  const bodyText = await page.innerText("body");
 
-  // Step 2: Exercise frequency + Supplement experience
-  await page.waitForSelector("text=exercise");
-  await page.getByRole("button", { name: "Next" }).click();
-
-  // Step 3: Focus areas
-  await page.waitForSelector("text=focus");
-  await page.getByText("Sleep").click();
-  await page.getByText("Nutrition").click();
-  await page.getByRole("button", { name: /start exploring|finish/i }).click();
+  if (bodyText.includes("Quick preferences") || bodyText.includes("Sleep quality")) {
+    // 2-step flow: step 2 is Quick Preferences (sleep/stress/exercise/supplements)
+    // Sliders default to 5 — just advance
+    await page.getByRole("button", { name: /start exploring/i }).click();
+  } else if (bodyText.includes("sleep") || bodyText.includes("Sleep")) {
+    // 4-step flow: step 2 is Sleep/Stress, advance through remaining steps
+    await page.getByRole("button", { name: "Next" }).click();
+    await page.waitForLoadState("domcontentloaded");
+    // Step 3: Exercise/Supplements
+    await page.getByRole("button", { name: "Next" }).click();
+    await page.waitForLoadState("domcontentloaded");
+    // Step 4: Focus areas
+    await page.getByText("Sleep").first().click();
+    await page.getByRole("button", { name: /start exploring|finish/i }).click();
+  } else {
+    // Fallback — just try to finish
+    await page.getByRole("button", { name: /start exploring|finish|next/i }).click();
+  }
 
   // Wait for redirect to /protocols
-  await page.waitForURL("**/protocols", { timeout: 10000 });
+  await page.waitForURL("**/protocols", { timeout: 15000 });
 }
 
 /**

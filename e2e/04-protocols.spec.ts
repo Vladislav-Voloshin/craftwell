@@ -121,8 +121,9 @@ test.describe("Protocol Detail", () => {
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
 
-    // Wait for protocol detail content to load (h1 title)
-    await page.waitForSelector("h1", { timeout: 15000 });
+    // Wait for SSR detail page to fully render (domcontentloaded first, then h1)
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForSelector("h1", { timeout: 20000 });
     const content = await page.innerText("body");
     expect(content?.length).toBeGreaterThan(100);
   });
@@ -135,6 +136,7 @@ test.describe("Protocol Detail", () => {
     await firstCard.waitFor({ timeout: 15000 });
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
+    await page.waitForLoadState("domcontentloaded");
 
     // Should have a back link — could be text or arrow icon
     const backLink = page.locator("a[href='/protocols']").first();
@@ -152,8 +154,9 @@ test.describe("Protocol Detail", () => {
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
 
-    // Wait for detail page to render
-    await page.waitForSelector("h1", { timeout: 15000 });
+    // Wait for SSR detail page to fully render
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForSelector("h1", { timeout: 20000 });
     const content = await page.innerText("body");
     // Tools should have numbered ranks or descriptions
     expect(
