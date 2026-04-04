@@ -4,6 +4,7 @@ import { getEmbedding } from "@/lib/pinecone/embeddings";
 import { queryVectors } from "@/lib/pinecone/client";
 import { getRequestId } from "@/lib/api/request-id";
 import { PINECONE_TIMEOUT_MS, SEARCH_VECTOR_PAGE_SIZE, SEARCH_TEXT_PAGE_SIZE } from "@/lib/constants";
+import { checkApiRateLimit } from "@/lib/api/rate-limit";
 import logger from "@/lib/logger";
 
 /** Run an async operation with a timeout. Rejects if it takes too long. */
@@ -35,7 +36,10 @@ export async function GET(request: NextRequest) {
   const log = logger.child({ requestId, route: "GET /api/search" });
 
   try {
-    const { supabase } = await requireAuth();
+    const { user, supabase } = await requireAuth();
+
+    const rateLimited = await checkApiRateLimit(user.id, "/api/search", supabase);
+    if (rateLimited) return rateLimited;
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
