@@ -1,4 +1,7 @@
 -- Protocol favorites: users can bookmark/favorite protocols
+-- NOTE: supersedes 003_protocol_favorites.sql which was accidentally committed
+-- alongside 003_protocol_notes.sql causing a sequence conflict.
+-- Uses idempotent DDL so it is safe to apply on DBs that already ran the old 003 file.
 create table if not exists protocol_favorites (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
