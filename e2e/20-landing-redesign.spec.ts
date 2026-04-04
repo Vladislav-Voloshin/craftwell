@@ -48,7 +48,8 @@ test.describe("Landing Page Redesign", () => {
     ).toBeVisible();
 
     await expect(page.getByText("10 Health Categories")).toBeVisible();
-    await expect(page.getByText("AI Health Adviser")).toBeVisible();
+    // Use heading role — PB-173 CTA paragraph also mentions "AI health adviser"
+    await expect(page.getByRole("heading", { name: "AI Health Adviser" })).toBeVisible();
     await expect(page.getByText(/track.*build habits/i)).toBeVisible();
   });
 
@@ -79,13 +80,14 @@ test.describe("Landing Page Redesign", () => {
 
   test("final CTA section has call to action", async ({ page }) => {
     await expect(
-      page.getByRole("heading", { name: /ready to optimize/i })
+      page.getByRole("heading", { name: /ready to optimize|get early access/i })
     ).toBeVisible();
 
-    const ctaButton = page.getByRole("link", {
-      name: /get started.*free/i,
-    });
-    await expect(ctaButton).toBeVisible();
+    // PB-173 replaced "Get Started — It's Free" button with WaitlistForm
+    // Verify the waitlist email input is present
+    await expect(
+      page.getByPlaceholder(/email/i).first()
+    ).toBeVisible();
   });
 
   test("footer has Privacy Policy and Terms links", async ({ page }) => {
