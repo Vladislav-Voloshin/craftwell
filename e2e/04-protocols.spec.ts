@@ -164,13 +164,12 @@ test.describe("Protocol Detail", () => {
   test("shows Add to My Protocols button for authenticated users", async ({
     page,
   }) => {
+    // Navigate directly (full page load) to avoid RSC SPA navigation timeout in CI
     await gotoAuthenticated(page, "/protocols");
-
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
-    await firstCard.click();
-    await page.waitForURL(/\/protocols\/.+/);
-    await page.waitForLoadState("domcontentloaded");
+    const protocolHref = await firstCard.getAttribute("href");
+    await gotoAuthenticated(page, protocolHref!);
 
     const addBtn = page.getByRole("button", {
       name: /add to my protocols|remove from my protocols/i,
@@ -179,12 +178,12 @@ test.describe("Protocol Detail", () => {
   });
 
   test("can toggle protocol in My Protocols", async ({ page }) => {
+    // Navigate directly (full page load) to avoid RSC SPA navigation timeout in CI
     await gotoAuthenticated(page, "/protocols");
-
     const firstCard = page.locator("main a[href^='/protocols/']").first();
     await firstCard.waitFor({ timeout: 15000 });
-    await firstCard.click();
-    await page.waitForURL(/\/protocols\/.+/);
+    const protocolHref = await firstCard.getAttribute("href");
+    await gotoAuthenticated(page, protocolHref!);
 
     const addBtn = page.getByRole("button", {
       name: /add to my protocols/i,
