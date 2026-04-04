@@ -20,8 +20,8 @@ test.describe("Landing Page Redesign", () => {
 
     await expect(page.getByText(/evidence-based protocols/i)).toBeVisible();
 
-    // Primary CTA
-    const getStarted = page.getByRole("link", { name: /get started/i });
+    // Primary CTA (first of two "Get Started" links)
+    const getStarted = page.getByRole("link", { name: /get started/i }).first();
     await expect(getStarted).toBeVisible();
 
     // Secondary CTA
@@ -37,7 +37,7 @@ test.describe("Landing Page Redesign", () => {
       page.getByRole("heading", { name: /how it works/i })
     ).toBeVisible();
 
-    await expect(page.getByText("Browse Protocols")).toBeVisible();
+    await expect(page.getByText("Browse Protocols").first()).toBeVisible();
     await expect(page.getByText("Follow the Science")).toBeVisible();
     await expect(page.getByText("Track Your Progress")).toBeVisible();
   });
@@ -72,7 +72,7 @@ test.describe("Landing Page Redesign", () => {
   });
 
   test("stats section shows protocol counts", async ({ page }) => {
-    await expect(page.getByText("50+")).toBeVisible();
+    await expect(page.getByText("50+").first()).toBeVisible();
     await expect(page.getByText("500+")).toBeVisible();
     await expect(page.getByText("Protocols").first()).toBeVisible();
   });

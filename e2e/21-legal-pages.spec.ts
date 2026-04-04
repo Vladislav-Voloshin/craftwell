@@ -85,7 +85,7 @@ test.describe("Terms of Service Page", () => {
     await page.goto("/terms");
     const content = await page.innerText("body");
 
-    expect(content).toContain("not medical advice");
+    expect(content).toMatch(/not.*medical advice|does not provide medical/i);
   });
 
   test("has back to home link", async ({ page }) => {

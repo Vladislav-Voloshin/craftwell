@@ -2,6 +2,7 @@
  * E2E Tests: Auth Page Redesign (Sprint 14)
  *
  * Tests the polished auth page with unified toggles, branding, and legal links.
+ * NOTE: Auth uses custom segmented-control buttons + floating-label inputs.
  */
 
 import { test, expect } from "@playwright/test";
@@ -29,17 +30,15 @@ test.describe("Auth Page Redesign", () => {
   });
 
   test("has unified Sign In / Sign Up toggle", async ({ page }) => {
-    const signInBtn = page.getByRole("button", { name: "Sign In" });
-    const signUpBtn = page.getByRole("button", { name: "Sign Up" });
-
-    await expect(signInBtn).toBeVisible();
-    await expect(signUpBtn).toBeVisible();
+    const tabBar = page.locator(".bg-muted.p-1");
+    await expect(tabBar.getByText("Sign In")).toBeVisible();
+    await expect(tabBar.getByText("Sign Up")).toBeVisible();
 
     // Click Sign Up
-    await signUpBtn.click();
+    await tabBar.getByText("Sign Up").click();
 
-    // Email form should still be visible
-    await expect(page.getByPlaceholder(/email/i)).toBeVisible();
+    // Email form should still be visible (floating label)
+    await expect(page.getByLabel("Email")).toBeVisible();
   });
 
   test("has unified Email / Phone toggle", async ({ page }) => {
@@ -51,7 +50,7 @@ test.describe("Auth Page Redesign", () => {
 
     // Switch to phone
     await phoneBtn.click();
-    await expect(page.getByPlaceholder(/phone/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/555/)).toBeVisible();
   });
 
   test("has Terms and Privacy links at bottom", async ({ page }) => {
