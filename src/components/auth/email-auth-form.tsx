@@ -1,6 +1,22 @@
 "use client";
 
+import { useMemo } from "react";
+import { zxcvbn, zxcvbnOptions } from "@zxcvbn-ts/core";
+import * as zxcvbnCommonPackage from "@zxcvbn-ts/language-en";
 import { Button } from "@/components/ui/button";
+
+// Initialise zxcvbn-ts with English dictionary (runs once at module load)
+zxcvbnOptions.setOptions({
+  translations: zxcvbnCommonPackage.translations,
+  graphs: zxcvbnCommonPackage.adjacencyGraphs,
+  dictionary: {
+    ...zxcvbnCommonPackage.dictionary,
+  },
+});
+
+/** NIST 800-63b: minimum 8 characters, minimum zxcvbn score 2 */
+const MIN_LENGTH = 8;
+const MIN_SCORE = 2;
 
 interface EmailAuthFormProps {
   email: string;
@@ -45,28 +61,90 @@ function FloatingInput({
   );
 }
 
-function PasswordHints({ password }: { password: string }) {
-  const checks = [
-    { label: "At least 6 characters", met: password.length >= 6 },
-    { label: "Contains a number", met: /\d/.test(password) },
-    { label: "Contains a letter", met: /[a-zA-Z]/.test(password) },
-  ];
+const STRENGTH_LABELS = ["Very weak", "Weak", "Fair", "Strong", "Very strong"];
+const STRENGTH_COLORS = [
+  "bg-red-500",
+  "bg-orange-500",
+  "bg-yellow-500",
+  "bg-emerald-500",
+  "bg-emerald-600",
+];
+const STRENGTH_TEXT_COLORS = [
+  "text-red-600 dark:text-red-400",
+  "text-orange-600 dark:text-orange-400",
+  "text-yellow-600 dark:text-yellow-500",
+  "text-emerald-600 dark:text-emerald-400",
+  "text-emerald-700 dark:text-emerald-300",
+];
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const result = useMemo(
+    () => (password ? zxcvbn(password) : null),
+    [password]
+  );
+
+  if (!password) return null;
+
+  const score = result?.score ?? 0;
+  const meetsLength = password.length >= MIN_LENGTH;
+  const meetsScore = score >= MIN_SCORE;
+  const isValid = meetsLength && meetsScore;
 
   return (
-    <ul className="space-y-1 pl-0.5">
-      {checks.map(({ label, met }) => (
-        <li key={label} className="flex items-center gap-1.5 text-xs">
-          <span
-            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-              met ? "bg-emerald-500" : "bg-muted-foreground/30"
+    <div className="space-y-2">
+      {/* Strength bar */}
+      <div className="flex gap-1">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors duration-200 ${
+              i <= score ? STRENGTH_COLORS[score] : "bg-muted"
             }`}
           />
-          <span className={met ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
-            {label}
+        ))}
+      </div>
+
+      {/* Score label + feedback */}
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-medium ${STRENGTH_TEXT_COLORS[score]}`}>
+          {STRENGTH_LABELS[score]}
+        </span>
+        {isValid && (
+          <span className="text-xs text-emerald-600 dark:text-emerald-400">
+            ✓ Strong enough
+          </span>
+        )}
+      </div>
+
+      {/* Inline requirement hints */}
+      <ul className="space-y-1 pl-0.5">
+        <li className="flex items-center gap-1.5 text-xs">
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+              meetsLength ? "bg-emerald-500" : "bg-muted-foreground/30"
+            }`}
+          />
+          <span className={meetsLength ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+            At least {MIN_LENGTH} characters
           </span>
         </li>
-      ))}
-    </ul>
+        <li className="flex items-center gap-1.5 text-xs">
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+              meetsScore ? "bg-emerald-500" : "bg-muted-foreground/30"
+            }`}
+          />
+          <span className={meetsScore ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+            Not too easy to guess
+          </span>
+        </li>
+        {result?.feedback?.warning && (
+          <li className="text-xs text-orange-600 dark:text-orange-400">
+            {result.feedback.warning}
+          </li>
+        )}
+      </ul>
+    </div>
   );
 }
 
@@ -79,6 +157,16 @@ export function EmailAuthForm({
   onPasswordChange,
   onSubmit,
 }: EmailAuthFormProps) {
+  const result = useMemo(
+    () => (mode === "signup" && password ? zxcvbn(password) : null),
+    [mode, password]
+  );
+
+  const isSignupDisabled =
+    mode === "signup" &&
+    password.length > 0 &&
+    (password.length < MIN_LENGTH || (result?.score ?? 0) < MIN_SCORE);
+
   return (
     <div className="space-y-4">
       <FloatingInput
@@ -96,9 +184,13 @@ export function EmailAuthForm({
           value={password}
           onChange={onPasswordChange}
         />
-        {mode === "signup" && <PasswordHints password={password} />}
+        {mode === "signup" && <PasswordStrengthMeter password={password} />}
       </div>
-      <Button className="w-full" onClick={onSubmit} disabled={loading}>
+      <Button
+        className="w-full"
+        onClick={onSubmit}
+        disabled={loading || isSignupDisabled}
+      >
         {loading
           ? mode === "signup" ? "Creating account..." : "Signing in..."
           : mode === "signup" ? "Create Account" : "Sign In"}
