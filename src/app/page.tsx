@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { WaitlistForm } from "@/components/ui/waitlist-form";
 import {
