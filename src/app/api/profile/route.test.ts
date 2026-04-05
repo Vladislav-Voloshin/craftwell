@@ -144,6 +144,7 @@ vi.mock("@/lib/logger", () => ({
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
 import { GET, PUT, DELETE } from "./route";
+// Note: getAdminClient() is tested indirectly via DELETE tests above.
 import { requireAuth } from "@/lib/api/helpers";
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -241,6 +242,31 @@ describe("PUT /api/profile", () => {
     const req = makeRequest("PUT", { profile: { display_name: "X" } });
     const res = await PUT(req);
     expect(res.status).toBe(401);
+  });
+
+  it("falls back to display_name-only update when column does not exist", async () => {
+    // First update attempt fails with 'does not exist'
+    profileChain.eq.mockResolvedValueOnce({
+      error: { message: "column does not exist" },
+    });
+    // Fallback update succeeds
+    profileChain.eq.mockResolvedValueOnce({ error: null });
+
+    const req = makeRequest("PUT", {
+      profile: { display_name: "Fallback Name", first_name: "Old" },
+    });
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.profile).toContain("updated");
+  });
+
+  it("returns 500 when survey upsert fails", async () => {
+    surveyChain.upsert.mockResolvedValueOnce({ error: { message: "upsert failed" } });
+
+    const req = makeRequest("PUT", { survey: { health_goals: ["sleep"] } });
+    const res = await PUT(req);
+    expect(res.status).toBe(500);
   });
 });
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { signInSchema, signUpSchema } from "@/lib/schemas";
 
 // Read and clear ?error= from the URL on first render (set by OAuth callback)
 function consumeOAuthError(): string {
@@ -30,10 +31,16 @@ export function useAuth() {
   const supabase = createClient();
 
   async function handleEmailSignUp() {
+    // Client-side validation (PB-222) — same schema as server
+    const result = signUpSchema.safeParse({ email, password });
+    if (!result.success) {
+      setMessage(result.error.issues[0].message);
+      return;
+    }
     setLoading(true);
     setMessage("");
     const { error } = await supabase.auth.signUp({
-      email,
+      email: result.data.email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/onboarding` },
     });
@@ -42,9 +49,15 @@ export function useAuth() {
   }
 
   async function handleEmailSignIn() {
+    // Client-side validation (PB-218) — catches malformed emails before API call
+    const result = signInSchema.safeParse({ email, password });
+    if (!result.success) {
+      setMessage(result.error.issues[0].message);
+      return;
+    }
     setLoading(true);
     setMessage("");
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    const { error, data } = await supabase.auth.signInWithPassword({ email: result.data.email, password });
     if (error) {
       setMessage(error.message);
     } else if (data.user) {
@@ -58,13 +71,16 @@ export function useAuth() {
     setLoading(false);
   }
 
-  async function handlePhoneOtp() {
+  async function handlePhoneOtp(normalizedPhone: string) {
     setLoading(true);
     setMessage("");
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    // Receive the E.164-normalised number from PhoneAuthForm validation
+    const { error } = await supabase.auth.signInWithOtp({ phone: normalizedPhone });
     if (error) {
       setMessage(error.message);
     } else {
+      // Store the E.164 number so the OTP verification step displays it correctly
+      setPhone(normalizedPhone);
       setOtpSent(true);
       setMessage("We sent a 6-digit code to your phone.");
     }

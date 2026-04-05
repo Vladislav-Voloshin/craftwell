@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle } from "lucide-react";
+import { waitlistSchema } from "@/lib/schemas";
 
 export function WaitlistForm({ source = "landing_page" }: { source?: string }) {
   const [email, setEmail] = useState("");
@@ -11,7 +12,14 @@ export function WaitlistForm({ source = "landing_page" }: { source?: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+
+    // Client-side validation before API call (PB-218)
+    const validation = waitlistSchema.safeParse({ email: email.trim(), source });
+    if (!validation.success) {
+      setState("error");
+      setMessage(validation.error.issues[0].message);
+      return;
+    }
 
     setState("loading");
     setMessage("");

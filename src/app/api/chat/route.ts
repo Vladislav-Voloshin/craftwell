@@ -3,13 +3,17 @@ import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/help
 import { queryVectors } from "@/lib/pinecone/client";
 import { getEmbedding, getAnthropicClient } from "@/lib/pinecone/embeddings";
 import { checkRateLimit } from "@/lib/api/rate-limit";
+import {
+  CHAT_MAX_MESSAGE_LENGTH as MAX_MESSAGE_LENGTH,
+  CHAT_MAX_HISTORY_TURNS as MAX_HISTORY_TURNS,
+  CHAT_MAX_TOKENS,
+  PINECONE_TIMEOUT_MS,
+  PINECONE_TOP_K,
+  CHAT_SESSION_TITLE_MAX_LENGTH,
+} from "@/lib/constants";
 import { z } from "zod";
 import { getRequestId } from "@/lib/api/request-id";
 import logger from "@/lib/logger";
-
-const MAX_MESSAGE_LENGTH = 4000;
-const MAX_HISTORY_TURNS = 20;
-const PINECONE_TIMEOUT_MS = 5000;
 
 const chatSchema = z.object({
   message: z.string().min(1, "Message is required").max(MAX_MESSAGE_LENGTH),
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
         .from("chat_sessions")
         .insert({
           user_id: user.id,
-          title: trimmedMessage.slice(0, 50),
+          title: trimmedMessage.slice(0, CHAT_SESSION_TITLE_MAX_LENGTH),
           protocol_id: protocol_id || null,
         })
         .select("id")
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
         try {
           const response = anthropic.messages.stream({
             model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
-            max_tokens: 1024,
+            max_tokens: CHAT_MAX_TOKENS,
             system: systemPrompt,
             messages,
           });
@@ -274,7 +278,7 @@ async function fetchRAGContext(query: string, log: Pick<typeof logger, "warn">) 
       "Embedding",
     );
     const matches = await withTimeout(
-      queryVectors(embedding, 5),
+      queryVectors(embedding, PINECONE_TOP_K),
       PINECONE_TIMEOUT_MS,
       "Pinecone query",
     );
