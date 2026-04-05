@@ -46,12 +46,18 @@ export async function GET(request: NextRequest) {
       toolCountMap.set(t.protocol_id, (toolCountMap.get(t.protocol_id) || 0) + 1);
     }
 
-    // Get all completions
+    // Get completions for the last 90 days — unbounded queries grow with user history
+    // and were a top contributor to Supabase Disk IO budget depletion.
+    const since = new Date();
+    since.setUTCDate(since.getUTCDate() - 90);
+    const sinceDate = since.toISOString().split("T")[0];
+
     const { data: completions } = await supabase
       .from("protocol_completions")
       .select("protocol_id, completed_date")
       .eq("user_id", user.id)
       .in("protocol_id", protocolIds)
+      .gte("completed_date", sinceDate)
       .order("completed_date", { ascending: false });
 
     const today = getLocalToday(request);
