@@ -43,6 +43,7 @@ function _inMemoryCheck(userId: string, endpoint: string, limit: number): boolea
   return true; // allowed
 }
 
+
 /**
  * Check if a user has exceeded the rate limit using Supabase as shared state.
  * Counts recent chat_messages from the user in the last minute.
