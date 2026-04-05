@@ -577,4 +577,70 @@ describe("POST /api/chat — post-stream cleanup", () => {
     // Only 4 from() calls expected (no assistant message insert since fullContent is empty)
     expect(mockFrom.mock.calls.length).toBe(4);
   });
+
+  it("does not save orphaned partial message when stream fails mid-way (PB-132)", async () => {
+    // Stream emits some content then throws — the partial content must NOT be
+    // persisted as an assistant message (it would appear as a garbled response
+    // in the user's chat history on next load).
+    mockFrom
+      .mockReturnValueOnce(makeChain({ error: null }))           // chat_messages.insert (user)
+      .mockReturnValueOnce(makeChain({ data: [], error: null })) // history
+      .mockReturnValueOnce(makeChain({ data: null }))            // survey
+      .mockReturnValueOnce(makeChain({ error: null }));          // chat_sessions.update only
+
+    mockMessagesStream.mockReturnValue(
+      (async function* () {
+        yield { type: "content_block_delta", delta: { type: "text_delta", text: "Partial res" } };
+        throw new Error("Network interrupted");
+      })()
+    );
+
+    const res = await POST(makeRequest({ message: "hi", session_id: SESSION_ID }));
+    const body = await res.text();
+
+    // SSE stream must include an error event
+    expect(body).toContain('"type":"error"');
+
+    // Still exactly 4 from() calls — session update happens but NO assistant
+    // message insert, even though fullContent is non-empty.
+    expect(mockFrom.mock.calls.length).toBe(4);
+  });
+
+  it("updates session timestamp even when stream fails (PB-132)", async () => {
+    mockFrom
+      .mockReturnValueOnce(makeChain({ error: null }))           // chat_messages.insert (user)
+      .mockReturnValueOnce(makeChain({ data: [], error: null })) // history
+      .mockReturnValueOnce(makeChain({ data: null }))            // survey
+      .mockReturnValueOnce(makeChain({ error: null }));          // chat_sessions.update
+
+    mockMessagesStream.mockReturnValue(
+      (async function* () {
+        throw new Error("Stream failed");
+      })()
+    );
+
+    const res = await POST(makeRequest({ message: "hi", session_id: SESSION_ID }));
+    await res.text();
+
+    // chat_sessions.update must have been called (4th from() call)
+    const lastCall = mockFrom.mock.calls[mockFrom.mock.calls.length - 1];
+    expect(lastCall[0]).toBe("chat_sessions");
+  });
+
+  it("skips session update when assistant message insert fails (PB-132)", async () => {
+    // Message insert fails → session update must NOT run (consistent state)
+    mockFrom
+      .mockReturnValueOnce(makeChain({ error: null }))                  // chat_messages.insert (user)
+      .mockReturnValueOnce(makeChain({ data: [], error: null }))        // history
+      .mockReturnValueOnce(makeChain({ data: null }))                   // survey
+      .mockReturnValueOnce(makeChain({ error: { message: "DB full" } })); // chat_messages.insert (assistant) FAILS
+
+    mockMessagesStream.mockReturnValue(makeAnthropicStream(["Response"]));
+
+    const res = await POST(makeRequest({ message: "hi", session_id: SESSION_ID }));
+    await res.text();
+
+    // Only 4 from() calls — session update is skipped after message insert failure
+    expect(mockFrom.mock.calls.length).toBe(4);
+  });
 });
