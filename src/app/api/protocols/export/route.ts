@@ -2,24 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
 
-/** Shape of each row returned by the completions join query. */
+/** Shape of each row returned by the completions join query.
+ *  Supabase infers embedded one-to-one joins as arrays in its generated types,
+ *  so protocols/protocol_tools are typed as arrays here to satisfy the compiler.
+ *  getRelationTitle() extracts the first element safely at runtime.
+ */
 interface CompletionRow {
   completed_date: string;
   protocol_id: string;
   tool_id: string;
-  protocols: { title: string } | null;
-  protocol_tools: { title: string } | null;
+  protocols: { title: string }[] | null;
+  protocol_tools: { title: string }[] | null;
 }
 
-/** Extract the title from a Supabase embedded-relation result with a runtime check. */
+/** Extract the title from a Supabase embedded-relation array result with a runtime check.
+ *  Handles both the array form Supabase returns and any null/empty edge cases.
+ */
 function getRelationTitle(relation: unknown): string {
+  const item = Array.isArray(relation) ? relation[0] : relation;
   if (
-    relation !== null &&
-    typeof relation === "object" &&
-    "title" in relation &&
-    typeof (relation as Record<string, unknown>).title === "string"
+    item !== null &&
+    item !== undefined &&
+    typeof item === "object" &&
+    "title" in item &&
+    typeof (item as Record<string, unknown>).title === "string"
   ) {
-    return (relation as { title: string }).title;
+    return (item as { title: string }).title;
   }
   return "Unknown";
 }
