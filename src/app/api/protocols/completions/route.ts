@@ -117,11 +117,17 @@ async function getStreaks(
 
   const toolCount = totalTools ?? 0;
 
+  // Cap at 90 days — unbounded query grows with history and hits Disk IO limits.
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - 90);
+  const sinceDate = since.toISOString().split("T")[0];
+
   const { data: completions } = await supabase
     .from("protocol_completions")
     .select("completed_date")
     .eq("user_id", userId)
     .eq("protocol_id", protocolId)
+    .gte("completed_date", sinceDate)
     .order("completed_date", { ascending: false });
 
   if (!completions || completions.length === 0 || toolCount === 0) {
