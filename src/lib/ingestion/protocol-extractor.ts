@@ -64,7 +64,7 @@ export async function extractProtocolsFromContent(
     .join("\n\n");
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514",
     max_tokens: 4096,
     system: `You are a health protocol extraction system. Your job is to analyze content from science-based health sources and extract structured, actionable health protocols.
 

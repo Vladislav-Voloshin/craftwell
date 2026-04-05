@@ -2,19 +2,59 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
 
+/** Shape of each row returned by the completions join query.
+ *  Supabase infers embedded one-to-one joins as arrays in its generated types,
+ *  so protocols/protocol_tools are typed as arrays here to satisfy the compiler.
+ *  getRelationTitle() extracts the first element safely at runtime.
+ */
+interface CompletionRow {
+  completed_date: string;
+  protocol_id: string;
+  tool_id: string;
+  protocols: { title: string }[] | null;
+  protocol_tools: { title: string }[] | null;
+}
+
+/** Extract the title from a Supabase embedded-relation array result with a runtime check.
+ *  Handles both the array form Supabase returns and any null/empty edge cases.
+ */
+function getRelationTitle(relation: unknown): string {
+  const item = Array.isArray(relation) ? relation[0] : relation;
+  if (
+    item !== null &&
+    item !== undefined &&
+    typeof item === "object" &&
+    "title" in item &&
+    typeof (item as Record<string, unknown>).title === "string"
+  ) {
+    return (item as { title: string }).title;
+  }
+  return "Unknown";
+}
+
+/** Escape a CSV field — wraps in quotes when the value contains commas, quotes, or newlines. */
+function escapeField(s: string): string {
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
     const { user, supabase } = await requireAuth();
 
     // Get all completions with protocol and tool info
-    const { data: completions } = await supabase
+    const { data } = await supabase
       .from("protocol_completions")
       .select("completed_date, protocol_id, tool_id, protocols(title), protocol_tools(title)")
       .eq("user_id", user.id)
       .order("completed_date", { ascending: false });
 
-    if (!completions || completions.length === 0) {
+    const completions = (data ?? []) as CompletionRow[];
+
+    if (completions.length === 0) {
       const csv = "Date,Protocol,Tool,Completed\n";
       return new NextResponse(csv, {
         headers: {
@@ -25,15 +65,8 @@ export async function GET(request: NextRequest) {
     }
 
     const rows = completions.map((c) => {
-      const protocol = (c.protocols as unknown as { title: string })?.title || "Unknown";
-      const tool = (c.protocol_tools as unknown as { title: string })?.title || "Unknown";
-      // Escape CSV fields that might contain commas or quotes
-      const escapeField = (s: string) => {
-        if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-          return `"${s.replace(/"/g, '""')}"`;
-        }
-        return s;
-      };
+      const protocol = getRelationTitle(c.protocols);
+      const tool = getRelationTitle(c.protocol_tools);
       return `${c.completed_date},${escapeField(protocol)},${escapeField(tool)},Yes`;
     });
 

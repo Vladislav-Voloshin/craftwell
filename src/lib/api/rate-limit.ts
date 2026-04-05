@@ -15,6 +15,35 @@ const ENDPOINT_LIMITS: Record<string, number> = {
   "/api/protocols/streaks": 40,
 };
 
+// ── In-memory rate limiter ────────────────────────────────────────────────────
+// Replaces the Supabase-backed rate_limit_log approach for checkApiRateLimit.
+// Each serverless instance keeps its own window; this is intentional — per-instance
+// limiting dramatically cuts DB Disk IO while still providing effective abuse protection
+// (a single user hammering one endpoint hits the same warm instance repeatedly).
+//
+// Map key: `${userId}:${endpoint}` → sorted array of request timestamps (ms).
+// Old entries are pruned on every check so memory stays bounded.
+
+const _rateLimitWindows = new Map<string, number[]>();
+
+function _inMemoryCheck(userId: string, endpoint: string, limit: number): boolean {
+  const key = `${userId}:${endpoint}`;
+  const now = Date.now();
+  const cutoff = now - WINDOW_MS;
+
+  const timestamps = (_rateLimitWindows.get(key) ?? []).filter((t) => t > cutoff);
+
+  if (timestamps.length >= limit) {
+    _rateLimitWindows.set(key, timestamps);
+    return false; // rate limited
+  }
+
+  timestamps.push(now);
+  _rateLimitWindows.set(key, timestamps);
+  return true; // allowed
+}
+
+
 /**
  * Check if a user has exceeded the rate limit using Supabase as shared state.
  * Counts recent chat_messages from the user in the last minute.
@@ -67,58 +96,38 @@ export async function checkRateLimit(
 }
 
 /**
- * Generic per-user, per-endpoint rate limiter backed by `rate_limit_log`.
- * Logs each request and rejects when the per-minute limit is exceeded.
+ * Generic per-user, per-endpoint rate limiter backed by in-process memory.
+ * Previously used `rate_limit_log` (a Supabase table) which generated a DB read
+ * + write on every API request — a top cause of Disk IO budget depletion.
+ *
+ * In-memory trade-off: limits are per serverless instance, not globally shared.
+ * This is acceptable because: a single user abusing one endpoint hits the same
+ * warm instance repeatedly, and the cost reduction is significant.
  *
  * Returns null if allowed, or a 429 Response if rate-limited.
- * Fails open on DB error (same policy as the chat rate limiter).
+ * The `supabase` parameter is kept for API compatibility but is no longer used.
  */
 export async function checkApiRateLimit(
   userId: string,
   endpoint: string,
-  supabase: SupabaseClient
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _supabase?: SupabaseClient
 ): Promise<Response | null> {
   const limit = ENDPOINT_LIMITS[endpoint] ?? 60;
-  const since = new Date(Date.now() - WINDOW_MS).toISOString();
 
-  try {
-    const { count, error: countErr } = await supabase
-      .from("rate_limit_log")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("endpoint", endpoint)
-      .gte("created_at", since);
-
-    if (countErr) throw countErr;
-
-    if ((count ?? 0) >= limit) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests. Please try again later." }),
-        {
-          status: 429,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": "60",
-          },
-        }
-      );
-    }
-
-    // Record this request (fire-and-forget — don't block the response)
-    supabase
-      .from("rate_limit_log")
-      .insert({ user_id: userId, endpoint })
-      .then(({ error }) => {
-        if (error) {
-          logger.warn({ error, userId, endpoint }, "Failed to insert rate_limit_log entry");
-        }
-      });
-  } catch (err) {
-    logger.error({ err, userId, endpoint }, "API rate limiter DB query failed, allowing request (fail-open)");
-    Sentry.captureException(err, {
-      extra: { userId, endpoint, context: "api-rate-limit" },
-      tags: { component: "rate-limiter" },
-    });
+  const allowed = _inMemoryCheck(userId, endpoint, limit);
+  if (!allowed) {
+    logger.warn({ userId, endpoint, limit }, "API rate limit exceeded (in-memory)");
+    return new Response(
+      JSON.stringify({ error: "Too many requests. Please try again later." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "60",
+        },
+      }
+    );
   }
 
   return null;

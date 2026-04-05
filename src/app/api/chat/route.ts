@@ -163,41 +163,50 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Run post-stream DB operations in parallel with error isolation
+        // Post-stream DB cleanup — sequential to prevent inconsistent state.
+        //
+        // Race condition fixed (PB-132):
+        //   - Previously, partial content from a failed stream was inserted as an
+        //     assistant message, creating orphaned records visible in chat history.
+        //   - Previously, both ops ran in parallel (Promise.allSettled), so a failed
+        //     message insert still left the session timestamp updated — inconsistent.
+        //
+        // Invariant: assistant message is ONLY saved on clean stream completion.
+        // Session timestamp is updated after — and only if — the message insert
+        // succeeds, leaving a consistent "no response" state on failure.
         try {
-          const cleanupOps: PromiseLike<unknown>[] = [];
+          if (!streamFailed && fullContent) {
+            // Sequential: insert message first, then update session.
+            const { error: msgErr } = await supabase
+              .from("chat_messages")
+              .insert({ session_id: currentSessionId, role: "assistant", content: fullContent, sources });
 
-          if (fullContent) {
-            cleanupOps.push(
-              supabase.from("chat_messages").insert({
-                session_id: currentSessionId,
-                role: "assistant",
-                content: fullContent,
-                sources: streamFailed ? undefined : sources,
-              })
-            );
-          }
-
-          cleanupOps.push(
-            supabase
-              .from("chat_sessions")
-              .update({ updated_at: new Date().toISOString() })
-              .eq("id", currentSessionId)
-          );
-
-          const results = await Promise.allSettled(cleanupOps);
-          results.forEach((r, i) => {
-            if (r.status === "rejected") {
-              log.error({ err: r.reason, op: i }, "Post-stream cleanup rejected");
+            if (msgErr) {
+              log.error({ err: msgErr }, "Failed to save assistant message — skipping session update");
             } else {
-              const val = r.value as { error?: unknown } | undefined;
-              if (val?.error) {
-                log.error({ err: val.error, op: i }, "Post-stream cleanup returned error");
+              const { error: sessionErr } = await supabase
+                .from("chat_sessions")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", currentSessionId);
+
+              if (sessionErr) {
+                log.error({ err: sessionErr }, "Failed to update session timestamp");
               }
             }
-          });
+          } else {
+            // Stream failed or produced no content: bump session timestamp so the
+            // "last active" indicator stays accurate, but save no assistant message.
+            const { error: sessionErr } = await supabase
+              .from("chat_sessions")
+              .update({ updated_at: new Date().toISOString() })
+              .eq("id", currentSessionId);
+
+            if (sessionErr) {
+              log.error({ err: sessionErr }, "Failed to update session timestamp after stream error");
+            }
+          }
         } catch (cleanupErr) {
-          log.error({ err: cleanupErr }, "Post-stream cleanup error");
+          log.error({ err: cleanupErr }, "Post-stream cleanup threw unexpectedly");
         }
 
         controller.enqueue(
