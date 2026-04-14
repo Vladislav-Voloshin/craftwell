@@ -7,7 +7,9 @@ import { completionSchema } from "@/lib/api/schemas";
 /** Get today's date in the user's local timezone using tz_offset query param. */
 function getLocalToday(request: NextRequest): string {
   const offsetStr = new URL(request.url).searchParams.get("tz_offset");
-  const offsetMinutes = offsetStr ? parseInt(offsetStr, 10) : 0;
+  const raw = offsetStr ? parseInt(offsetStr, 10) : 0;
+  // Clamp to valid UTC offset range: UTC-12 (-720) to UTC+14 (+840)
+  const offsetMinutes = Math.max(-720, Math.min(840, Number.isNaN(raw) ? 0 : raw));
   return getLocalDate(offsetMinutes);
 }
 

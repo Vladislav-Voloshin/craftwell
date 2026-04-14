@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseBody, apiError, handleApiError } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
+import { checkIpRateLimit } from "@/lib/api/rate-limit";
 import logger from "@/lib/logger";
 import { z } from "zod";
 
@@ -14,6 +15,11 @@ const waitlistSchema = z.object({
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request);
   const log = logger.child({ requestId, route: "POST /api/waitlist" });
+
+  // IP-based rate limiting for unauthenticated endpoint
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rateLimited = checkIpRateLimit(ip, "/api/waitlist");
+  if (rateLimited) return rateLimited;
 
   try {
     const supabase = await createClient();

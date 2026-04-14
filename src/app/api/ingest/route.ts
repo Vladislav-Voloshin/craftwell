@@ -20,7 +20,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Rate limit even for admin — prevent accidental pipeline spam
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "admin";
+  const { checkIpRateLimit } = await import("@/lib/api/rate-limit");
+  const rateLimited = checkIpRateLimit(ip, "/api/ingest");
+  if (rateLimited) return rateLimited;
+
   const { step } = await request.json();
+  log.info({ step }, "Ingestion pipeline triggered");
 
   try {
     switch (step) {
