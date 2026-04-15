@@ -63,3 +63,25 @@ export function clientEnv(): ClientEnv {
   }
   return _clientEnv;
 }
+
+/** Stripe env — only required by /api/stripe/* routes. */
+const stripeSchema = z.object({
+  STRIPE_SECRET_KEY: z.string().min(1),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  STRIPE_PRICE_MONTHLY: z.string().min(1),
+  STRIPE_PRICE_ANNUAL: z.string().min(1),
+  STRIPE_PRICE_LIFETIME: z.string().min(1),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1),
+});
+
+export type StripeEnv = z.infer<typeof stripeSchema>;
+
+let _stripeEnv: StripeEnv | undefined;
+
+/** Validates Stripe secrets — only call from Stripe API routes. */
+export function stripeEnv(): StripeEnv {
+  if (!_stripeEnv) {
+    _stripeEnv = validateEnv(stripeSchema, process.env, 'stripe');
+  }
+  return _stripeEnv;
+}

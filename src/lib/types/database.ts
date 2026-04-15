@@ -167,6 +167,39 @@ export interface ProtocolCategoryRecord {
 }
 
 // ============================================================
+// Subscriptions
+// ============================================================
+
+export type PlanType = "monthly" | "annual" | "lifetime";
+export type SubscriptionStatus =
+  | "active"
+  | "canceled"
+  | "past_due"
+  | "trialing"
+  | "incomplete"
+  | "incomplete_expired"
+  | "paused";
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string;
+  /** NULL for lifetime one-time purchases. */
+  stripe_subscription_id: string | null;
+  stripe_price_id: string;
+  plan_type: PlanType;
+  status: SubscriptionStatus;
+  /** NULL for lifetime purchases. */
+  current_period_start: string | null;
+  /** NULL for lifetime purchases. */
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  canceled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
 // API Response Types
 // ============================================================
 
