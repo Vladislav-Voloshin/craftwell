@@ -47,14 +47,8 @@ let _stripe: Stripe | undefined;
 export function getStripe(): Stripe {
   if (!_stripe) {
     const key = requireEnv("STRIPE_SECRET_KEY");
-    // `apiVersion` is required by the Stripe TypeScript SDK.
-    // Keep this in sync with your Stripe dashboard webhook version.
-    _stripe = new Stripe(key, {
-      // @ts-expect-error — apiVersion literal differs between SDK patch releases.
-      // The string must match your Stripe account API version.
-      apiVersion: "2025-03-31.basil",
-      typescript: true,
-    });
+    // Keep apiVersion in sync with your Stripe dashboard webhook version.
+    _stripe = new Stripe(key, { apiVersion: "2026-03-25.dahlia" });
   }
   return _stripe;
 }
