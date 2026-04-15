@@ -92,36 +92,38 @@ export default function AuthPage() {
               </button>
             </div>
 
-            {auth.tab === "signup" ? (
-              <EmailAuthForm
-                email={auth.email}
-                password={auth.password}
-                loading={auth.loading}
-                mode="signup"
-                onEmailChange={auth.setEmail}
-                onPasswordChange={auth.setPassword}
-                onSubmit={auth.handleEmailSignUp}
-              />
-            ) : auth.authMode === "email" ? (
-              <>
+            {auth.authMode === "email" ? (
+              auth.tab === "signup" ? (
                 <EmailAuthForm
                   email={auth.email}
                   password={auth.password}
                   loading={auth.loading}
-                  mode="signin"
+                  mode="signup"
                   onEmailChange={auth.setEmail}
                   onPasswordChange={auth.setPassword}
-                  onSubmit={auth.handleEmailSignIn}
+                  onSubmit={auth.handleEmailSignUp}
                 />
-                <div className="text-right">
-                  <Link
-                    href="/auth/forgot-password"
-                    className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </>
+              ) : (
+                <>
+                  <EmailAuthForm
+                    email={auth.email}
+                    password={auth.password}
+                    loading={auth.loading}
+                    mode="signin"
+                    onEmailChange={auth.setEmail}
+                    onPasswordChange={auth.setPassword}
+                    onSubmit={auth.handleEmailSignIn}
+                  />
+                  <div className="text-right">
+                    <Link
+                      href="/auth/forgot-password"
+                      className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                </>
+              )
             ) : (
               <PhoneAuthForm
                 phone={auth.phone}
