@@ -56,11 +56,19 @@ export default async function ProtocolDetailPage({
 
   if (!protocol) notFound();
 
-  const { data: tools } = await supabase
+  const { data: rawTools } = await supabase
     .from("protocol_tools")
     .select("*")
     .eq("protocol_id", protocol.id)
     .order("effectiveness_rank");
+
+  // Deduplicate tools by ID — ingestion pipeline may create duplicate entries
+  const seenIds = new Set<string>();
+  const tools = (rawTools || []).filter((t) => {
+    if (seenIds.has(t.id)) return false;
+    seenIds.add(t.id);
+    return true;
+  });
 
   const {
     data: { user },

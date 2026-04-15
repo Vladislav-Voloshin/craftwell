@@ -52,7 +52,7 @@ export function RelatedProtocols({ protocols }: { protocols: Protocol[] }) {
                       <Icon className={cn("w-3.5 h-3.5", meta.accent)} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{protocol.title}</p>
+                      <p className="text-sm font-medium truncate" title={protocol.title}>{protocol.title}</p>
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                         {protocol.description}
                       </p>
