@@ -30,6 +30,10 @@ export function ProtocolDetail({
   const { completedToolIds, togglingToolId, streakData, toggleToolCompletion, refetch } =
     useProtocolCompletions(protocol.id, isLoggedIn, isActive);
 
+  const uniqueTools = tools.filter(
+    (tool, index, arr) => arr.findIndex((t) => t.id === tool.id) === index
+  );
+
   async function toggleProtocol() {
     setLoading(true);
     try {
@@ -77,12 +81,12 @@ export function ProtocolDetail({
 
       <Separator />
 
-      {isLoggedIn && isActive && tools.length > 0 && (
-        <ProtocolProgress completedCount={completedToolIds.size} totalTools={tools.length} streakData={streakData} />
+      {isLoggedIn && isActive && uniqueTools.length > 0 && (
+        <ProtocolProgress completedCount={completedToolIds.size} totalTools={uniqueTools.length} streakData={streakData} />
       )}
 
       <ProtocolChecklist
-        tools={tools}
+        tools={uniqueTools}
         isLoggedIn={isLoggedIn}
         isActive={isActive}
         completedToolIds={completedToolIds}
