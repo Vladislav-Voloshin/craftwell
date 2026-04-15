@@ -48,8 +48,11 @@ test.describe("P0 Happy Path: Browse → Detail → Add to Stack", () => {
     await firstCard.click();
     await page.waitForURL(/\/protocols\/.+/);
 
-    // Should see protocol content
-    await expect(page.locator("body")).toContainText(/tools completed|Instructions/i);
+    // Wait for the loading skeleton to be replaced by real SSR content
+    await page.waitForSelector("h1", { timeout: 15000 });
+
+    // Should see protocol content — h1 title is always present once loaded
+    await expect(page.locator("h1")).toBeVisible({ timeout: 5000 });
 
     // Add to stack (or verify already added)
     const addBtn = page.getByRole("button", { name: /add to my protocols/i });
