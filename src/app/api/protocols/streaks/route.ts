@@ -11,7 +11,9 @@ function daysBetween(a: string, b: string): number {
 
 function getLocalToday(request: NextRequest): string {
   const offsetStr = new URL(request.url).searchParams.get("tz_offset");
-  const offsetMinutes = offsetStr ? parseInt(offsetStr, 10) : 0;
+  const raw = offsetStr ? parseInt(offsetStr, 10) : 0;
+  // Clamp to valid UTC offset range: UTC-12 (-720) to UTC+14 (+840)
+  const offsetMinutes = Math.max(-720, Math.min(840, Number.isNaN(raw) ? 0 : raw));
   const now = new Date();
   const local = new Date(now.getTime() - offsetMinutes * 60000);
   return local.toISOString().split("T")[0];

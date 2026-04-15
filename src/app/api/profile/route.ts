@@ -4,6 +4,7 @@ import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/help
 import { getRequestId } from "@/lib/api/request-id";
 import { checkApiRateLimit } from "@/lib/api/rate-limit";
 import { coreEnv } from "@/lib/env";
+import logger from "@/lib/logger";
 import { z } from "zod";
 
 /**
@@ -193,8 +194,12 @@ export async function DELETE(request: NextRequest) {
     // has no data but can still sign in — they'll just see a fresh state.
     const { error: authError } = await admin.auth.admin.deleteUser(user.id);
     if (authError) {
+      logger.error({ requestId, userId: user.id, err: authError }, "Account deletion: auth removal failed after data cleanup");
       return apiError(`Data deleted but auth removal failed: ${authError.message}`, 500);
     }
+
+    // Audit log — account fully deleted
+    logger.info({ requestId, userId: user.id, email: user.email }, "Account deletion completed successfully");
 
     return NextResponse.json({ status: "deleted" });
   } catch (err) {

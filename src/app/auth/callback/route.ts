@@ -7,9 +7,16 @@ export async function GET(request: Request) {
   const errorParam = searchParams.get("error_description") || searchParams.get("error");
   const next = searchParams.get("next") ?? "/onboarding";
 
-  // Handle OAuth provider errors (e.g. user denied consent)
+  // Handle OAuth provider errors — map to generic messages to prevent information leakage
   if (errorParam) {
-    const encoded = encodeURIComponent(errorParam);
+    const genericErrors: Record<string, string> = {
+      access_denied: "Authentication was denied",
+      invalid_request: "Invalid authentication request",
+      server_error: "Authentication service error",
+      temporarily_unavailable: "Authentication temporarily unavailable",
+    };
+    const safeMessage = genericErrors[errorParam] || "Authentication failed. Please try again.";
+    const encoded = encodeURIComponent(safeMessage);
     return NextResponse.redirect(`${origin}/auth?error=${encoded}`);
   }
 
