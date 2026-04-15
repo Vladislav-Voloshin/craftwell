@@ -136,7 +136,7 @@ export function ProtocolList({
                           <div className={cn("w-5 h-5 rounded flex items-center justify-center shrink-0", meta.bg)}>
                             <Icon className={cn("w-3 h-3", meta.accent)} />
                           </div>
-                          <span className="text-xs font-semibold truncate group-hover:text-primary transition-colors">
+                          <span className="text-xs font-semibold truncate group-hover:text-primary transition-colors" title={protocol.title}>
                             {protocol.title}
                           </span>
                         </div>
@@ -271,7 +271,7 @@ export function ProtocolList({
                               <Icon className={cn("w-3.5 h-3.5", meta.accent)} />
                             </div>
                             <div className="min-w-0">
-                              <CardTitle className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                              <CardTitle className="text-sm font-semibold truncate group-hover:text-primary transition-colors" title={protocol.title}>
                                 {protocol.title}
                               </CardTitle>
                               <div className="flex items-center gap-2 mt-0.5">

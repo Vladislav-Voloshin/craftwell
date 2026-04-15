@@ -92,7 +92,19 @@ export default function AuthPage() {
               </button>
             </div>
 
-            {auth.tab === "signup" ? (
+            {auth.authMode === "phone" ? (
+              <PhoneAuthForm
+                phone={auth.phone}
+                otp={auth.otp}
+                otpSent={auth.otpSent}
+                loading={auth.loading}
+                onPhoneChange={auth.setPhone}
+                onOtpChange={auth.setOtp}
+                onSendOtp={auth.handlePhoneOtp}
+                onVerifyOtp={auth.handleVerifyOtp}
+                onReset={auth.resetOtp}
+              />
+            ) : auth.tab === "signup" ? (
               <EmailAuthForm
                 email={auth.email}
                 password={auth.password}
@@ -102,7 +114,7 @@ export default function AuthPage() {
                 onPasswordChange={auth.setPassword}
                 onSubmit={auth.handleEmailSignUp}
               />
-            ) : auth.authMode === "email" ? (
+            ) : (
               <>
                 <EmailAuthForm
                   email={auth.email}
@@ -122,18 +134,6 @@ export default function AuthPage() {
                   </Link>
                 </div>
               </>
-            ) : (
-              <PhoneAuthForm
-                phone={auth.phone}
-                otp={auth.otp}
-                otpSent={auth.otpSent}
-                loading={auth.loading}
-                onPhoneChange={auth.setPhone}
-                onOtpChange={auth.setOtp}
-                onSendOtp={auth.handlePhoneOtp}
-                onVerifyOtp={auth.handleVerifyOtp}
-                onReset={auth.resetOtp}
-              />
             )}
           </div>
 
