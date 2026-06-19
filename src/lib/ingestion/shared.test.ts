@@ -90,7 +90,7 @@ describe("cleanHtml", () => {
 });
 
 describe("TOPIC_KEYWORDS", () => {
-  it("contains core Huberman topics", () => {
+  it("contains core science-based topics", () => {
     expect(TOPIC_KEYWORDS).toContain("sleep");
     expect(TOPIC_KEYWORDS).toContain("dopamine");
     expect(TOPIC_KEYWORDS).toContain("cold exposure");

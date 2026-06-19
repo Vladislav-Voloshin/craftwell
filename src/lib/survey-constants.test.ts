@@ -40,7 +40,7 @@ describe("survey constants", () => {
   });
 
   describe("FOCUS_AREAS", () => {
-    it("contains key Huberman topics", () => {
+    it("contains key science-based focus areas", () => {
       expect(FOCUS_AREAS).toContain("Sleep");
       expect(FOCUS_AREAS).toContain("Cold/Heat Exposure");
       expect(FOCUS_AREAS).toContain("Light Optimization");

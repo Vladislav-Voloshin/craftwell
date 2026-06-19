@@ -16,14 +16,14 @@ const TOUR_STEPS: TourStep[] = [
     target: "[data-tour='protocols-nav']",
     title: "Browse Protocols",
     description:
-      "Explore science-based health protocols from the Huberman Lab. Each one comes with actionable tools you can track daily.",
+      "Explore science-based health protocols grounded in peer-reviewed research. Each one comes with actionable tools you can track daily.",
     position: "top",
   },
   {
     target: "[data-tour='chat-nav']",
     title: "Ask the AI Coach",
     description:
-      "Chat with an AI trained on Huberman Lab content. Ask about sleep, supplements, exercise, or any health topic.",
+      "Chat with an AI grounded in peer-reviewed health science. Ask about sleep, supplements, exercise, or any health topic.",
     position: "top",
   },
   {
