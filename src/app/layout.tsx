@@ -36,7 +36,6 @@ export const metadata: Metadata = {
     "exercise routines",
     "evidence-based health",
     "biohacking",
-    "Huberman",
   ],
   authors: [{ name: "Craftwell" }],
   openGraph: {

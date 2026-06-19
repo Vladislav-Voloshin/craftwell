@@ -1,6 +1,6 @@
 # Craftwell
 
-AI-powered health protocol recommendations based on Huberman Lab research. Browse evidence-based protocols, track daily completions, and chat with an AI assistant grounded in peer-reviewed sources.
+AI-powered, science-based health protocol recommendations. Browse evidence-based protocols, track daily completions, and chat with an AI assistant grounded in peer-reviewed sources.
 
 **Production:** https://craftwell.vercel.app
 **Preview (dev):** Deployed automatically from the `dev` branch via Vercel
