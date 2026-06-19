@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { withTimeout } from "@/lib/api/with-timeout";
 import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/helpers";
 import { queryVectors } from "@/lib/pinecone/client";
 import { getEmbedding, getAnthropicClient } from "@/lib/pinecone/embeddings";
@@ -249,29 +250,7 @@ async function fetchConversationHistory(
     .reverse();
 }
 
-/** Run an async operation with a timeout. Rejects if it takes too long. */
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`${label} timed out after ${ms}ms`)),
-      ms,
-    );
-    promise.then(
-      (val) => {
-        clearTimeout(timer);
-        resolve(val);
-      },
-      (err: unknown) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
+// withTimeout moved to @/lib/api/with-timeout
 
 /** Fetch RAG context from Pinecone for the given query.
  *  If Pinecone is down or times out, returns empty context with a degradation flag. */
