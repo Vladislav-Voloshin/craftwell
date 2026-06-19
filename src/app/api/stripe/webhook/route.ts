@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * `current_period_start` / `current_period_end` were removed from the
@@ -12,7 +13,6 @@ type StripeSubPayload = Stripe.Subscription & {
   current_period_end: number;
 };
 import { constructWebhookEvent } from "@/lib/stripe";
-import { coreEnv } from "@/lib/env";
 import { apiError } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
 import logger from "@/lib/logger";
@@ -23,16 +23,9 @@ import type { PlanType, SubscriptionStatus } from "@/lib/types/database";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getServiceClient() {
-  const { NEXT_PUBLIC_SUPABASE_URL } = coreEnv();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  return createServiceClient(NEXT_PUBLIC_SUPABASE_URL, serviceKey);
-}
-
 /** Upsert a subscription row keyed by user_id. */
 async function upsertSubscription(
-  db: ReturnType<typeof getServiceClient>,
+  db: SupabaseClient,
   row: {
     user_id: string;
     stripe_customer_id: string;
@@ -75,7 +68,7 @@ function epochToIso(ts: number | null | undefined): string | null {
 // ---------------------------------------------------------------------------
 
 async function handleCheckoutCompleted(
-  db: ReturnType<typeof getServiceClient>,
+  db: SupabaseClient,
   session: Stripe.Checkout.Session,
   requestId: string
 ) {
@@ -111,7 +104,7 @@ async function handleCheckoutCompleted(
 }
 
 async function handleSubscriptionUpdated(
-  db: ReturnType<typeof getServiceClient>,
+  db: SupabaseClient,
   sub: StripeSubPayload,
   requestId: string
 ) {
@@ -145,7 +138,7 @@ async function handleSubscriptionUpdated(
 }
 
 async function handleSubscriptionDeleted(
-  db: ReturnType<typeof getServiceClient>,
+  db: SupabaseClient,
   sub: StripeSubPayload,
   requestId: string
 ) {
@@ -190,7 +183,7 @@ export async function POST(request: NextRequest) {
     return apiError(`Webhook signature verification failed: ${msg}`, 400);
   }
 
-  const db = getServiceClient();
+  const db = createAdminClient();
 
   try {
     switch (event.type) {

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
 import { getStripe, PLANS, type PlanType } from "@/lib/stripe";
-import { stripeEnv, coreEnv } from "@/lib/env";
+import { stripeEnv } from "@/lib/env";
 import logger from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
@@ -19,17 +19,9 @@ const checkoutBodySchema = z.object({
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Service-role Supabase client for writes that bypass RLS. */
-function getServiceClient() {
-  const { NEXT_PUBLIC_SUPABASE_URL } = coreEnv();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  return createServiceClient(NEXT_PUBLIC_SUPABASE_URL, serviceKey);
-}
-
 /** Count existing lifetime purchases from the subscriptions table. */
 async function getLifetimePurchaseCount(): Promise<number> {
-  const db = getServiceClient();
+  const db = createAdminClient();
   const { count, error } = await db
     .from("subscriptions")
     .select("id", { count: "exact", head: true })

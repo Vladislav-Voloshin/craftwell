@@ -1,6 +1,6 @@
-import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { coreEnv } from "@/lib/env";
+import { createAdminClient } from "@/lib/supabase/admin";
 import logger from "@/lib/logger";
 import type {
   PlanType,
@@ -80,12 +80,6 @@ function toEntitlement(row: EntitlementRow | null): Entitlement {
   };
 }
 
-function getServiceClient(): SupabaseClient {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  return createServiceClient(coreEnv().NEXT_PUBLIC_SUPABASE_URL, serviceKey);
-}
-
 /**
  * Entitlement for the currently-authenticated request (RLS — users read their
  * own row). Use from route handlers / server components that already have the
@@ -120,7 +114,7 @@ export async function getEntitlementForUser(
   userId: string,
   db?: SupabaseClient
 ): Promise<Entitlement> {
-  const client = db ?? getServiceClient();
+  const client = db ?? createAdminClient();
   const { data, error } = await client
     .from("subscriptions")
     .select(ENTITLEMENT_COLUMNS)

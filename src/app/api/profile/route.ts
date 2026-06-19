@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
 import { checkApiRateLimit } from "@/lib/api/rate-limit";
-import { coreEnv } from "@/lib/env";
 import logger from "@/lib/logger";
 import { z } from "zod";
-
-/**
- * Lightweight admin client that only requires Supabase keys —
- * avoids importing getSupabaseAdmin which pulls in the full
- * AI/ingestion env (ANTHROPIC_API_KEY, PINECONE_API_KEY, etc.).
- */
-function getAdminClient() {
-  const { NEXT_PUBLIC_SUPABASE_URL } = coreEnv();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return createSupabaseClient(NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey);
-}
 
 const profileUpdateSchema = z.object({
   profile: z.object({
@@ -119,7 +104,7 @@ export async function DELETE(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
     const { user, supabase } = await requireAuth();
-    const admin = getAdminClient();
+    const admin = createAdminClient();
 
     // ── 1. Delete application data FIRST (child → parent for FK order) ──
     // If any delete fails, the user can still sign in and retry.
