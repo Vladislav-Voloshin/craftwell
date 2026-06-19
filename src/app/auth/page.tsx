@@ -30,11 +30,18 @@ export default function AuthPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <SocialLoginButton
-            provider="google"
-            onClick={() => auth.handleSocialLogin("google")}
-            disabled={auth.socialLoading || auth.loading}
-          />
+          <div className="space-y-3">
+            <SocialLoginButton
+              provider="google"
+              onClick={() => auth.handleSocialLogin("google")}
+              disabled={auth.socialLoading || auth.loading}
+            />
+            <SocialLoginButton
+              provider="apple"
+              onClick={() => auth.handleSocialLogin("apple")}
+              disabled={auth.socialLoading || auth.loading}
+            />
+          </div>
 
           <div className="relative">
             <Separator />

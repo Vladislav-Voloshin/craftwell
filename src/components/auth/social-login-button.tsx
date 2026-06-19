@@ -29,6 +29,12 @@ const GOOGLE_ICON = (
   </svg>
 );
 
+const APPLE_ICON = (
+  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M16.365 1.43c0 1.14-.42 2.2-1.12 2.98-.84.94-2.2 1.66-3.32 1.57-.14-1.1.43-2.27 1.1-3 .76-.82 2.13-1.45 3.34-1.55zM20.9 17.1c-.55 1.27-.82 1.84-1.53 2.96-.99 1.56-2.39 3.5-4.12 3.51-1.54.01-1.94-1-4.03-.99-2.09.01-2.53 1.01-4.07.99-1.73-.02-3.05-1.77-4.04-3.33-2.77-4.36-3.06-9.48-1.35-12.2 1.21-1.93 3.13-3.06 4.93-3.06 1.84 0 2.99 1.01 4.51 1.01 1.47 0 2.37-1.01 4.5-1.01 1.6 0 3.3.87 4.5 2.38-3.96 2.17-3.32 7.82.23 9.74z" />
+  </svg>
+);
+
 const LABELS: Record<string, string> = {
   google: "Continue with Google",
   apple: "Continue with Apple",
@@ -43,6 +49,7 @@ export function SocialLoginButton({ provider, onClick, disabled }: SocialLoginBu
       disabled={disabled}
     >
       {provider === "google" && GOOGLE_ICON}
+      {provider === "apple" && APPLE_ICON}
       {LABELS[provider]}
     </Button>
   );
