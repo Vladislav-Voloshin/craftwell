@@ -36,9 +36,9 @@ test.describe("Auth Page", () => {
     await expect(googleBtn).toBeVisible();
   });
 
-  test("does not show Apple button (deferred)", async ({ page }) => {
+  test("shows Apple button (Sign in with Apple)", async ({ page }) => {
     const appleBtn = page.getByRole("button", { name: /apple/i });
-    await expect(appleBtn).not.toBeVisible();
+    await expect(appleBtn).toBeVisible();
   });
 
   test("has Sign In and Sign Up tabs", async ({ page }) => {
