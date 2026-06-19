@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "scripts/**",
     "coverage/**",
+    // Local Claude Code tooling state and agent git worktrees. Agent worktrees
+    // create duplicated source trees under .claude/worktrees/** that would
+    // otherwise be linted as if they were real project files.
+    ".claude/**",
   ]),
   {
     // Prevent accidental console.log/warn/error from landing in production code.
