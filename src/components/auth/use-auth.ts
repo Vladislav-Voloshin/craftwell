@@ -111,10 +111,10 @@ export function useAuth() {
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
+        // Google-specific consent params; Apple ignores (and shouldn't get) them.
+        ...(provider === "google"
+          ? { queryParams: { access_type: "offline", prompt: "consent" } }
+          : {}),
       },
     });
     if (error) {
