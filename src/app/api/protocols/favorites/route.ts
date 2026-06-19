@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError, handleApiError, parseBody } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
-import { z } from "zod";
-
-const toggleSchema = z.object({
-  protocol_id: z.string().uuid(),
-});
+import { favoriteToggleSchema } from "@/lib/api/schemas";
 
 export async function GET() {
   try {
@@ -29,7 +25,7 @@ export async function POST(request: NextRequest) {
   try {
     const { user, supabase } = await requireAuth();
 
-    const body = await parseBody(request, toggleSchema);
+    const body = await parseBody(request, favoriteToggleSchema);
     if (body instanceof Response) return body;
 
     const { protocol_id } = body;
