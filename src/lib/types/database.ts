@@ -180,13 +180,24 @@ export type SubscriptionStatus =
   | "incomplete_expired"
   | "paused";
 
+/** Payment provider that issued an entitlement. Stripe today; Apple/Google after IAP lands. */
+export type EntitlementProvider = "stripe" | "apple" | "google";
+
 export interface Subscription {
   id: string;
   user_id: string;
-  stripe_customer_id: string;
-  /** NULL for lifetime one-time purchases. */
+  /** Which provider issued this entitlement. Defaults to 'stripe'. */
+  provider: EntitlementProvider;
+  /** Stripe customer id — NULL for Apple/Google IAP rows. */
+  stripe_customer_id: string | null;
+  /** NULL for lifetime one-time purchases and non-Stripe providers. */
   stripe_subscription_id: string | null;
-  stripe_price_id: string;
+  /** Stripe price id — NULL for Apple/Google IAP rows. */
+  stripe_price_id: string | null;
+  /** Apple product id / Google SKU — NULL for Stripe rows. */
+  provider_product_id: string | null;
+  /** Apple original_transaction_id / Google purchaseToken — NULL for Stripe rows. */
+  provider_transaction_id: string | null;
   plan_type: PlanType;
   status: SubscriptionStatus;
   /** NULL for lifetime purchases. */
