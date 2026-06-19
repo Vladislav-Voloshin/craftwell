@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
-
-/** Compute days between two YYYY-MM-DD strings. */
-function daysBetween(a: string, b: string): number {
-  const msA = Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10));
-  const msB = Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10));
-  return Math.round((msA - msB) / 86400000);
-}
+import { daysBetween } from "@/lib/api/date-utils";
 
 function getLocalToday(request: NextRequest): string {
   const offsetStr = new URL(request.url).searchParams.get("tz_offset");
