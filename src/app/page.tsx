@@ -88,11 +88,19 @@ export default function HomePage() {
             </div>
             <span className="font-semibold text-lg">Craftwell</span>
           </div>
-          <Link href="/auth">
-            <Button variant="outline" size="sm">
-              Sign In
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/pricing"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link href="/auth">
+              <Button variant="outline" size="sm">
+                Sign In
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
