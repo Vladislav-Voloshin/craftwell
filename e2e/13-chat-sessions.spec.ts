@@ -5,7 +5,7 @@
  * copy-to-clipboard, and markdown rendering in assistant responses.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 test.describe("Chat Session Management", () => {

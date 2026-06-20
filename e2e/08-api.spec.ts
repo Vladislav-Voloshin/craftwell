@@ -10,7 +10,7 @@
  * body shape rather than asserting a hard 401.
  */
 
-import { test, expect, APIRequestContext } from "@playwright/test";
+import { test, expect, type APIRequestContext } from "./fixtures";
 
 let anonRequest: APIRequestContext;
 

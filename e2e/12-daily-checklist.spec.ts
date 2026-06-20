@@ -5,7 +5,7 @@
  * progress bar, and streak display. The checklist only shows for activated protocols.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 test.describe("Daily Checklist", () => {

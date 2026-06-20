@@ -4,7 +4,7 @@
  * Tests Privacy Policy (/privacy) and Terms of Service (/terms).
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Privacy Policy Page", () => {
   test("loads and displays all required sections", async ({ page }) => {

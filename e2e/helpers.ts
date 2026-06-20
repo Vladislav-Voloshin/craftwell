@@ -4,12 +4,53 @@
  * Shared utilities for authentication, test data, and common actions.
  */
 
-import { Page, expect } from "@playwright/test";
+import { Page, expect, test } from "@playwright/test";
 
-// Test user credentials — uses a dedicated test account
-export const TEST_USER = {
-  email: "e2e-test@craftwell.app",
-  password: "TestPass123!",
+// Shared password for every seeded E2E account (see scripts/seed-e2e-user.mjs).
+export const TEST_PASSWORD = "TestPass123!";
+
+/**
+ * Credentials for a specific parallel worker's dedicated account.
+ *
+ * Worker 0 → e2e-test+w0@craftwell.app, worker 1 → e2e-test+w1@…, etc.
+ * Each worker owning its own account is what prevents Supabase refresh-token
+ * rotation from invalidating sibling workers' sessions.
+ */
+export function testUserForWorker(workerIndex: number) {
+  return {
+    email: `e2e-test+w${workerIndex}@craftwell.app`,
+    password: TEST_PASSWORD,
+  };
+}
+
+/**
+ * The current worker's credentials.
+ *
+ * `TEST_USER` is a getter so it resolves lazily against `test.info()` at the
+ * moment of use — that keeps existing call sites (`TEST_USER.email`,
+ * `signInTestUser(page)`) working while transparently giving every worker its
+ * own account. Falls back to the base shared account when no worker context is
+ * available (e.g. outside a running test).
+ */
+function currentTestUser() {
+  let workerIndex = 0;
+  try {
+    workerIndex = test.info().workerIndex;
+  } catch {
+    // Not inside a test (no worker context) — use the base shared account.
+    return { email: "e2e-test@craftwell.app", password: TEST_PASSWORD };
+  }
+  return testUserForWorker(workerIndex);
+}
+
+// Test user credentials — resolves to the running worker's dedicated account.
+export const TEST_USER: { readonly email: string; readonly password: string } = {
+  get email() {
+    return currentTestUser().email;
+  },
+  get password() {
+    return currentTestUser().password;
+  },
 };
 
 /**
@@ -33,13 +74,40 @@ export async function signUpTestUser(page: Page) {
 }
 
 /**
- * Sign in with email/password via the auth page.
+ * Robustly fill a React-controlled input.
  *
- * Includes retry logic — if the first sign-in attempt results in a
- * redirect back to /auth (e.g. session cookie race in CI), we retry
- * once before giving up.
+ * The auth form's inputs are controlled (value/onChange). If we type before
+ * React has hydrated and attached the onChange handler, the value is dropped
+ * and the form reports "Email is required" on submit. So we fill, then verify
+ * the DOM value actually stuck, retrying a few times — this is what makes the
+ * sign-in deterministic instead of flaky.
  */
-export async function signInTestUser(page: Page) {
+async function fillControlled(
+  page: Page,
+  getInput: () => ReturnType<Page["getByLabel"]>,
+  value: string
+) {
+  for (let i = 0; i < 5; i++) {
+    const input = getInput();
+    await input.fill(value);
+    if ((await input.inputValue()) === value) return;
+    await page.waitForTimeout(300);
+  }
+  throw new Error(`fillControlled: input never retained value "${value}"`);
+}
+
+/**
+ * Core sign-in flow for an arbitrary account. Used by both signInTestUser()
+ * (the per-worker default) and the worker auth fixture (e2e/fixtures.ts).
+ *
+ * Includes retry logic — if a sign-in attempt results in a redirect back to
+ * /auth (e.g. session cookie race) or the controlled inputs drop their value,
+ * we retry before giving up.
+ */
+export async function signInAs(
+  page: Page,
+  user: { email: string; password: string }
+) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       // page.goto can itself throw net::ERR_ABORTED in CI under load;
@@ -48,8 +116,12 @@ export async function signInTestUser(page: Page) {
 
       // Default tab is "Sign In", but click it explicitly for reliability
       await clickAuthTab(page, "Sign In");
-      await page.getByLabel("Email").fill(TEST_USER.email);
-      await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
+      await fillControlled(page, () => page.getByLabel("Email"), user.email);
+      await fillControlled(
+        page,
+        () => page.getByLabel("Password", { exact: true }),
+        user.password
+      );
       // Two "Sign In" buttons exist: segmented control (.bg-muted) and form submit.
       // Use .last() to target the submit button.
       await page.getByRole("button", { name: "Sign In" }).last().click();
@@ -66,11 +138,19 @@ export async function signInTestUser(page: Page) {
 
       return; // success
     } catch {
-      if (attempt === 2) throw new Error("signInTestUser: failed after 3 attempts");
+      if (attempt === 2)
+        throw new Error(`signInAs(${user.email}): failed after 3 attempts`);
       // Brief pause before retry to let the server recover
       await page.waitForTimeout(1500);
     }
   }
+}
+
+/**
+ * Sign in with the current worker's dedicated test account via the auth page.
+ */
+export async function signInTestUser(page: Page) {
+  await signInAs(page, { email: TEST_USER.email, password: TEST_USER.password });
 }
 
 /**

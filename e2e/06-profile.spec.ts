@@ -4,7 +4,7 @@
  * Tests profile display, health info, protocol stack, and sign out.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
 
 test.describe("Profile Page", () => {

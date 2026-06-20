@@ -5,7 +5,7 @@
  * NOTE: Auth uses custom segmented-control buttons + floating-label inputs.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Auth Page Redesign", () => {
   test.beforeEach(async ({ page }) => {

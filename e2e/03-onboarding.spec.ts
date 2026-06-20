@@ -5,7 +5,7 @@
  * and that already-onboarded users skip onboarding on subsequent logins.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 test.describe("Onboarding Flow", () => {
