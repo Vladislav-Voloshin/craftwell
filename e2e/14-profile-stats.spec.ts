@@ -5,7 +5,7 @@
  * Note: Streaks & Stats section only renders when the user has active protocols.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
 
 test.describe("Profile Stats & Streaks", () => {

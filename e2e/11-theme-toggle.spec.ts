@@ -4,7 +4,7 @@
  * Tests dark/light mode switching via the theme toggle button in the header.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 test.describe("Theme Toggle", () => {

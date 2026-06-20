@@ -4,7 +4,7 @@
  * Tests the public landing page (/) — hero, CTAs, navigation.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Landing Page", () => {
   test("displays hero section with Craftwell branding", async ({ page }) => {

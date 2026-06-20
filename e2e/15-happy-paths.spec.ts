@@ -9,7 +9,7 @@
  * 5. Sign out and re-sign in
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
 
 test.describe("P0 Happy Path: Returning User Login → Protocols", () => {
@@ -43,13 +43,17 @@ test.describe("P0 Happy Path: Browse → Detail → Add to Stack", () => {
     const cardCount = await cards.count();
     expect(cardCount).toBeGreaterThan(0);
 
-    // Open first protocol detail
+    // Open the first protocol via a full page load — a card click does an RSC
+    // SPA navigation that times out under parallel load (see 04-protocols).
     const firstCard = cards.first();
-    await firstCard.click();
-    await page.waitForURL(/\/protocols\/.+/);
+    const href = await firstCard.getAttribute("href");
+    await gotoAuthenticated(page, href!);
 
-    // Wait for the loading skeleton to be replaced by real SSR content
-    await page.waitForSelector("h1", { timeout: 15000 });
+    // Wait for the streamed detail content (skeleton -> real SSR content).
+    await page.waitForFunction(
+      () => document.body.innerText.trim().length > 100,
+      { timeout: 20000 }
+    );
 
     // Should see protocol content — h1 title is always present once loaded
     await expect(page.locator("h1")).toBeVisible({ timeout: 5000 });

@@ -5,7 +5,7 @@
  * Hero, How It Works, Feature Highlights, Categories, Stats, Final CTA, Footer.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Landing Page Redesign", () => {
   test.beforeEach(async ({ page }) => {

@@ -9,7 +9,7 @@
  * Floating-label inputs use placeholder=" " with <label>, so use getByLabel().
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import "./helpers";
 
 /** Click a segmented-control tab button */

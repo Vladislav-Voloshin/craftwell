@@ -1,8 +1,15 @@
-// Seed (idempotently) the dedicated E2E test account used by the Playwright
+// Seed (idempotently) the dedicated E2E test accounts used by the Playwright
 // suite. Reads Supabase creds from .env.local and uses the service-role admin
-// API so the user is created already-confirmed. Safe to run repeatedly.
+// API so each user is created already-confirmed. Safe to run repeatedly.
 //
 //   node scripts/seed-e2e-user.mjs
+//
+// Why multiple accounts?
+// The Playwright `full` project runs several workers in parallel. Supabase
+// rotates refresh tokens, so if every worker shares ONE account, concurrent
+// token refreshes invalidate each other's session and authenticated pages
+// redirect to /auth (flaky failures). Giving each worker its OWN account
+// (e2e-test+w{N}@craftwell.app) eliminates that cross-worker session race.
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
@@ -23,32 +30,52 @@ if (!url || !serviceKey) {
   process.exit(1);
 }
 
-const EMAIL = "e2e-test@craftwell.app";
 const PASSWORD = "TestPass123!";
+
+// The base shared account (kept for back-compat / serial smoke runs) plus one
+// dedicated account per parallel Playwright worker slot. Keep WORKER_COUNT in
+// sync with the max `workers` configured in playwright.config.ts.
+const WORKER_COUNT = 6;
+const EMAILS = [
+  "e2e-test@craftwell.app",
+  ...Array.from({ length: WORKER_COUNT }, (_, i) => `e2e-test+w${i}@craftwell.app`),
+];
 
 const supabase = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const { data: list, error: listErr } = await supabase.auth.admin.listUsers({ perPage: 200 });
-if (listErr) {
-  console.error("listUsers failed:", listErr.message);
-  process.exit(1);
+// Fetch all existing users once (paginated) so we can dedupe before creating.
+const existingEmails = new Set();
+for (let page = 1; ; page++) {
+  const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+  if (error) {
+    console.error("listUsers failed:", error.message);
+    process.exit(1);
+  }
+  for (const u of data.users) existingEmails.add(u.email);
+  if (data.users.length < 200) break;
 }
 
-const existing = list.users.find((u) => u.email === EMAIL);
-if (existing) {
-  console.log("E2E user already exists:", existing.id);
-  process.exit(0);
+let created = 0;
+let skipped = 0;
+for (const email of EMAILS) {
+  if (existingEmails.has(email)) {
+    console.log("E2E user already exists:", email);
+    skipped++;
+    continue;
+  }
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password: PASSWORD,
+    email_confirm: true,
+  });
+  if (error) {
+    console.error(`createUser failed for ${email}:`, error.message);
+    process.exit(1);
+  }
+  console.log("E2E user created:", email, data.user.id);
+  created++;
 }
 
-const { data, error } = await supabase.auth.admin.createUser({
-  email: EMAIL,
-  password: PASSWORD,
-  email_confirm: true,
-});
-if (error) {
-  console.error("createUser failed:", error.message);
-  process.exit(1);
-}
-console.log("E2E user created:", data.user.id);
+console.log(`\nDone. Created ${created}, already existed ${skipped}, total ${EMAILS.length}.`);
