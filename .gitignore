@@ -44,5 +44,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# claude worktrees
-.claude/worktrees/
+# claude code local tooling state & agent worktrees (keep tracked launch.json)
+.claude/*
+!.claude/launch.json
