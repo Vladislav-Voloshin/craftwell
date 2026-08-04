@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withTimeout } from "@/lib/api/with-timeout";
 import { requireAuth, apiError, handleApiError } from "@/lib/api/helpers";
 import { getEmbedding } from "@/lib/pinecone/embeddings";
 import { queryVectors } from "@/lib/pinecone/client";
@@ -7,29 +8,7 @@ import { PINECONE_TIMEOUT_MS, SEARCH_VECTOR_PAGE_SIZE, SEARCH_TEXT_PAGE_SIZE } f
 import { checkApiRateLimit } from "@/lib/api/rate-limit";
 import logger from "@/lib/logger";
 
-/** Run an async operation with a timeout. Rejects if it takes too long. */
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`${label} timed out after ${ms}ms`)),
-      ms,
-    );
-    promise.then(
-      (val) => {
-        clearTimeout(timer);
-        resolve(val);
-      },
-      (err: unknown) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
+// withTimeout moved to @/lib/api/with-timeout
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);

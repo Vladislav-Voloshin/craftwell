@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { ProtocolHeader } from "./protocol-header";
 import { ProtocolProgress } from "./protocol-progress";
@@ -29,6 +29,15 @@ export function ProtocolDetail({
 
   const { completedToolIds, togglingToolId, streakData, toggleToolCompletion, refetch } =
     useProtocolCompletions(protocol.id, isLoggedIn, isActive);
+
+  const uniqueTools = useMemo(() => {
+    const seen = new Set<string>();
+    return tools.filter((tool) => {
+      if (seen.has(tool.id)) return false;
+      seen.add(tool.id);
+      return true;
+    });
+  }, [tools]);
 
   async function toggleProtocol() {
     setLoading(true);
@@ -77,12 +86,12 @@ export function ProtocolDetail({
 
       <Separator />
 
-      {isLoggedIn && isActive && tools.length > 0 && (
-        <ProtocolProgress completedCount={completedToolIds.size} totalTools={tools.length} streakData={streakData} />
+      {isLoggedIn && isActive && uniqueTools.length > 0 && (
+        <ProtocolProgress completedCount={completedToolIds.size} totalTools={uniqueTools.length} streakData={streakData} />
       )}
 
       <ProtocolChecklist
-        tools={tools}
+        tools={uniqueTools}
         isLoggedIn={isLoggedIn}
         isActive={isActive}
         completedToolIds={completedToolIds}

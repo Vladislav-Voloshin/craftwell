@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
-import { AUTH_FILE } from "./e2e/auth-file";
+import type { AuthOptions } from "./e2e/fixtures";
 
-export default defineConfig({
+export default defineConfig<AuthOptions>({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -15,15 +15,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    // ── Auth setup — runs once, saves session to .auth/user.json ────────────
-    {
-      name: "setup",
-      testMatch: /auth\.setup\.ts/,
-      use: { ...devices["Desktop Chrome"] },
-    },
-
     // ── Smoke tests (01–07) — don't depend on saved auth ───────────────────
-    // Auth spec (02) deliberately tests unauthenticated flows — no storageState.
+    // Auth spec (02) deliberately tests unauthenticated flows.
     // Other smoke specs (01, 03–07) call signInTestUser() themselves.
     // fullyParallel: false prevents concurrent sign-ins that would exhaust
     // Supabase auth rate limits across parallel workers.
@@ -34,17 +27,20 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
 
-    // ── Full suite — reuses saved auth session across all workers ───────────
-    // Excludes 02-auth.spec.ts which tests unauthenticated flows — those tests
-    // are already covered by the smoke project and would fail here because
-    // storageState pre-authenticates every test context.
+    // ── Full suite — each parallel worker authenticates as its OWN account ──
+    // `workerAuth: true` activates the per-worker storageState fixture
+    // (e2e/fixtures.ts): every worker signs in as e2e-test+w{workerIndex} once
+    // and reuses that session, so Supabase refresh-token rotation in one worker
+    // can't invalidate another's (the cause of the prior /auth-redirect flakes).
+    // Excludes 02-auth.spec.ts which tests unauthenticated flows — already
+    // covered by the smoke project and would fail here because every context is
+    // pre-authenticated.
     {
       name: "full",
       testIgnore: /02-auth\.spec\.ts/,
-      dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],
-        storageState: AUTH_FILE,
+        workerAuth: true,
       },
     },
   ],

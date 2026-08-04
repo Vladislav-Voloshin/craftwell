@@ -13,6 +13,8 @@ const ENDPOINT_LIMITS: Record<string, number> = {
   "/api/protocols/completions": 60,
   "/api/protocols/notes": 40,
   "/api/protocols/streaks": 40,
+  "/api/waitlist": 5,
+  "/api/ingest": 3,
 };
 
 // ── In-memory rate limiter ────────────────────────────────────────────────────
@@ -118,6 +120,34 @@ export async function checkApiRateLimit(
   const allowed = _inMemoryCheck(userId, endpoint, limit);
   if (!allowed) {
     logger.warn({ userId, endpoint, limit }, "API rate limit exceeded (in-memory)");
+    return new Response(
+      JSON.stringify({ error: "Too many requests. Please try again later." }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "60",
+        },
+      }
+    );
+  }
+
+  return null;
+}
+
+/**
+ * IP-based rate limiter for unauthenticated endpoints (e.g., /api/waitlist).
+ * Uses the same in-memory sliding-window approach as checkApiRateLimit.
+ */
+export function checkIpRateLimit(
+  ip: string,
+  endpoint: string
+): Response | null {
+  const limit = ENDPOINT_LIMITS[endpoint] ?? 10;
+
+  const allowed = _inMemoryCheck(`ip:${ip}`, endpoint, limit);
+  if (!allowed) {
+    logger.warn({ ip, endpoint, limit }, "IP rate limit exceeded");
     return new Response(
       JSON.stringify({ error: "Too many requests. Please try again later." }),
       {

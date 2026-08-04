@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { WaitlistForm } from "@/components/ui/waitlist-form";
+import { AppStoreButton } from "@/components/ui/app-store-button";
 import {
   Moon,
   Brain,
@@ -87,11 +88,19 @@ export default function HomePage() {
             </div>
             <span className="font-semibold text-lg">Craftwell</span>
           </div>
-          <Link href="/auth">
-            <Button variant="outline" size="sm">
-              Sign In
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/pricing"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link href="/auth">
+              <Button variant="outline" size="sm">
+                Sign In
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -120,8 +129,11 @@ export default function HomePage() {
               Browse Protocols
             </Link>
           </div>
+          <div className="flex justify-center pt-2">
+            <AppStoreButton />
+          </div>
           <p className="text-sm text-muted-foreground/70 pt-1">
-            Free to start &middot; No credit card required
+            iOS app coming soon &middot; Free to start, no credit card required
           </p>
         </div>
       </section>
@@ -175,23 +187,9 @@ export default function HomePage() {
                 <BookOpen className="size-6 text-primary" />
               </div>
               <h3 className="text-lg font-semibold">10 Health Categories</h3>
-              <div className="grid grid-cols-5 gap-2">
-                {categories.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <div
-                      key={cat.label}
-                      className="flex items-center justify-center p-2 rounded-lg bg-muted/30"
-                      title={cat.label}
-                    >
-                      <Icon className={`size-4 ${cat.accent}`} />
-                    </div>
-                  );
-                })}
-              </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 From sleep optimization and focus enhancement to cold exposure
-                and hormonal health.
+                and hormonal health &mdash; explore all ten below.
               </p>
             </div>
 
@@ -221,10 +219,6 @@ export default function HomePage() {
                   </span>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Ask any health question and get answers grounded in
-                peer-reviewed research with cited sources.
-              </p>
             </div>
 
             {/* Feature 3: Tracking */}
@@ -253,16 +247,12 @@ export default function HomePage() {
                   </span>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Daily completions, streaks, weekly dashboards, and progress
-                analytics to keep you on track.
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Categories Preview ── */}
+      {/* ── Categories ── */}
       <section className="bg-muted/5 px-4 sm:px-6 py-20 sm:py-24">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-14">
@@ -310,12 +300,16 @@ export default function HomePage() {
         <div className="max-w-3xl mx-auto">
           <div className="rounded-2xl bg-muted/20 border border-border/50 p-8 sm:p-12 text-center space-y-6">
             <h2 className="text-2xl sm:text-3xl font-bold">
-              Get early access
+              Be first to download Craftwell
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto leading-relaxed">
-              Join our waitlist and be first to access science-based protocols,
+              The iOS app is coming soon. Join the waitlist and we&apos;ll let you
+              know the moment it lands &mdash; plus get early access to protocols,
               personalized recommendations, and an AI health adviser.
             </p>
+            <div className="flex justify-center pt-1">
+              <AppStoreButton />
+            </div>
             <WaitlistForm source="landing_cta" />
             <p className="text-xs text-muted-foreground/60">
               Already have an account?{" "}

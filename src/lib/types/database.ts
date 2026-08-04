@@ -167,6 +167,50 @@ export interface ProtocolCategoryRecord {
 }
 
 // ============================================================
+// Subscriptions
+// ============================================================
+
+export type PlanType = "monthly" | "annual" | "lifetime";
+export type SubscriptionStatus =
+  | "active"
+  | "canceled"
+  | "past_due"
+  | "trialing"
+  | "incomplete"
+  | "incomplete_expired"
+  | "paused";
+
+/** Payment provider that issued an entitlement. Stripe today; Apple/Google after IAP lands. */
+export type EntitlementProvider = "stripe" | "apple" | "google";
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  /** Which provider issued this entitlement. Defaults to 'stripe'. */
+  provider: EntitlementProvider;
+  /** Stripe customer id — NULL for Apple/Google IAP rows. */
+  stripe_customer_id: string | null;
+  /** NULL for lifetime one-time purchases and non-Stripe providers. */
+  stripe_subscription_id: string | null;
+  /** Stripe price id — NULL for Apple/Google IAP rows. */
+  stripe_price_id: string | null;
+  /** Apple product id / Google SKU — NULL for Stripe rows. */
+  provider_product_id: string | null;
+  /** Apple original_transaction_id / Google purchaseToken — NULL for Stripe rows. */
+  provider_transaction_id: string | null;
+  plan_type: PlanType;
+  status: SubscriptionStatus;
+  /** NULL for lifetime purchases. */
+  current_period_start: string | null;
+  /** NULL for lifetime purchases. */
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  canceled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
 // API Response Types
 // ============================================================
 

@@ -4,7 +4,7 @@
  * Tests the bottom nav bar, app shell, and page-to-page navigation.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 test.describe("App Shell & Navigation", () => {

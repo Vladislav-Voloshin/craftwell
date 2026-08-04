@@ -4,7 +4,7 @@
  * Tests robots.txt, sitemap.xml, meta tags, and OG tags.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("SEO", () => {
   test("robots.txt is accessible and has correct content", async ({

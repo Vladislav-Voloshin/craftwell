@@ -9,7 +9,7 @@
  * these tests are deterministic and do not require a live Pinecone index.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 const MOCK_SOURCES = [

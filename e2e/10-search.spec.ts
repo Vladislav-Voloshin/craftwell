@@ -5,7 +5,7 @@
  * filtering by title/description/tags, clearing, and combining with category filter.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser } from "./helpers";
 
 test.describe("Protocol Search", () => {

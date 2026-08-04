@@ -5,7 +5,7 @@
  * Hero, How It Works, Feature Highlights, Categories, Stats, Final CTA, Footer.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Landing Page Redesign", () => {
   test.beforeEach(async ({ page }) => {
@@ -80,7 +80,7 @@ test.describe("Landing Page Redesign", () => {
 
   test("final CTA section has call to action", async ({ page }) => {
     await expect(
-      page.getByRole("heading", { name: /ready to optimize|get early access/i })
+      page.getByRole("heading", { name: /ready to optimize|get early access|be first to download/i })
     ).toBeVisible();
 
     // PB-173 replaced "Get Started — It's Free" button with WaitlistForm

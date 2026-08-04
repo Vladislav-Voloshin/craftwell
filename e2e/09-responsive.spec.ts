@@ -4,7 +4,7 @@
  * Tests that pages render correctly on mobile and desktop viewports.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Responsive: Mobile (375x667)", () => {
   test.use({ viewport: { width: 375, height: 667 } });

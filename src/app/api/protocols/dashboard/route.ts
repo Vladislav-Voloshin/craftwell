@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const weekParam = searchParams.get("week"); // YYYY-MM-DD (Monday of the week)
-    const tzOffset = parseInt(searchParams.get("tz_offset") || "0", 10);
+    const rawOffset = parseInt(searchParams.get("tz_offset") || "0", 10);
+    const tzOffset = Math.max(-720, Math.min(840, Number.isNaN(rawOffset) ? 0 : rawOffset));
 
     // Calculate week start (Monday) based on provided date or current date
     let weekStart: Date;

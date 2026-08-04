@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api/helpers";
 import { getRequestId } from "@/lib/api/request-id";
-
-/** Compute days between two YYYY-MM-DD strings. */
-function daysBetween(a: string, b: string): number {
-  const msA = Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10));
-  const msB = Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10));
-  return Math.round((msA - msB) / 86400000);
-}
+import { daysBetween } from "@/lib/api/date-utils";
 
 function getLocalToday(request: NextRequest): string {
   const offsetStr = new URL(request.url).searchParams.get("tz_offset");
-  const offsetMinutes = offsetStr ? parseInt(offsetStr, 10) : 0;
+  const raw = offsetStr ? parseInt(offsetStr, 10) : 0;
+  // Clamp to valid UTC offset range: UTC-12 (-720) to UTC+14 (+840)
+  const offsetMinutes = Math.max(-720, Math.min(840, Number.isNaN(raw) ? 0 : raw));
   const now = new Date();
   const local = new Date(now.getTime() - offsetMinutes * 60000);
   return local.toISOString().split("T")[0];

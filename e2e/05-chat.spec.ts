@@ -5,7 +5,7 @@
  * suggestion buttons, and session management.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser, gotoAuthenticated } from "./helpers";
 
 test.describe("Chat Interface", () => {

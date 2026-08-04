@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api/helpers";
+import { daysBetween } from "@/lib/api/date-utils";
 
 export interface Achievement {
   id: string;
@@ -67,10 +68,4 @@ export async function GET() {
   } catch (err) {
     return handleApiError(err);
   }
-}
-
-function daysBetween(a: string, b: string): number {
-  const msA = Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10));
-  const msB = Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10));
-  return Math.round((msA - msB) / 86400000);
 }

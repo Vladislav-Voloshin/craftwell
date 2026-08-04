@@ -5,7 +5,7 @@
  * Requires authenticated user.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { signInTestUser, gotoAuthenticated } from "./helpers";
 
 test.describe("Protocol Listing", () => {
@@ -123,6 +123,10 @@ test.describe("Protocol Detail", () => {
     const protocolHref = await firstCard.getAttribute("href");
     await gotoAuthenticated(page, protocolHref!);
 
+    // Detail content streams in after a loading skeleton — wait for it to render.
+    await page.waitForFunction(() => document.body.innerText.trim().length > 100, {
+      timeout: 15000,
+    });
     const content = await page.innerText("body");
     expect(content?.length).toBeGreaterThan(100);
   });
@@ -150,6 +154,10 @@ test.describe("Protocol Detail", () => {
     const protocolHref = await firstCard.getAttribute("href");
     await gotoAuthenticated(page, protocolHref!);
 
+    // Detail content streams in after a loading skeleton — wait for it to render.
+    await page.waitForFunction(() => document.body.innerText.trim().length > 200, {
+      timeout: 15000,
+    });
     const content = await page.innerText("body");
     // Tools should have numbered ranks or descriptions
     expect(
