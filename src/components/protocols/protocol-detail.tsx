@@ -31,12 +31,24 @@ export function ProtocolDetail({
     useProtocolCompletions(protocol.id, isLoggedIn, isActive);
 
   const uniqueTools = useMemo(() => {
-    const seen = new Set<string>();
-    return tools.filter((tool) => {
-      if (seen.has(tool.id)) return false;
-      seen.add(tool.id);
-      return true;
+    const byTitle = new Map<string, { tool: ProtocolTool; index: number }>();
+
+    tools.forEach((tool, index) => {
+      const normalizedTitle = tool.title.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+      const key = normalizedTitle || tool.id;
+      const existing = byTitle.get(key);
+
+      if (!existing || tool.effectiveness_rank < existing.tool.effectiveness_rank) {
+        byTitle.set(key, { tool, index });
+      }
     });
+
+    return [...byTitle.values()]
+      .sort(
+        (a, b) =>
+          a.tool.effectiveness_rank - b.tool.effectiveness_rank || a.index - b.index
+      )
+      .map(({ tool }) => tool);
   }, [tools]);
 
   async function toggleProtocol() {

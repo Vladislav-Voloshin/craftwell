@@ -133,22 +133,26 @@ const mockTools: ProtocolTool[] = [
   {
     id: "tool-1",
     protocol_id: "proto-1",
-    name: "Go outside",
+    title: "Go outside",
     description: "Stand outside for 10 min",
+    instructions: "Go outdoors shortly after waking.",
     effectiveness_rank: 1,
-    duration_minutes: 10,
-    is_optional: false,
+    timing: "Morning",
+    duration: "10 minutes",
+    frequency: "Daily",
     notes: null,
     created_at: "2026-01-01",
   },
   {
     id: "tool-2",
     protocol_id: "proto-1",
-    name: "Avoid sunglasses",
+    title: "Avoid sunglasses",
     description: "Let light reach your eyes",
+    instructions: "Avoid sunglasses when safe to do so.",
     effectiveness_rank: 2,
-    duration_minutes: 0,
-    is_optional: true,
+    timing: "Morning",
+    duration: "10 minutes",
+    frequency: "Daily",
     notes: null,
     created_at: "2026-01-01",
   },
@@ -187,6 +191,18 @@ describe("ProtocolDetail — basic rendering", () => {
 
   it("renders ProtocolChecklist with tools", () => {
     render(<ProtocolDetail protocol={mockProtocol} tools={mockTools} />);
+    const checklist = screen.getByTestId("protocol-checklist");
+    expect(checklist.getAttribute("data-tools")).toBe("2");
+  });
+
+  it("deduplicates tool titles and keeps the highest-ranked version", () => {
+    const duplicateTools = [
+      { ...mockTools[0], id: "tool-duplicate", title: "  GO   OUTSIDE  ", effectiveness_rank: 3 },
+      ...mockTools,
+    ];
+
+    render(<ProtocolDetail protocol={mockProtocol} tools={duplicateTools} />);
+
     const checklist = screen.getByTestId("protocol-checklist");
     expect(checklist.getAttribute("data-tools")).toBe("2");
   });

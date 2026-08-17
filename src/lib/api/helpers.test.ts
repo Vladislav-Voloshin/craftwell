@@ -3,7 +3,6 @@ import {
   AuthError,
   apiError,
   handleApiError,
-  requireAuth,
   parseBody,
 } from "./helpers";
 import { NextRequest } from "next/server";

@@ -13,10 +13,7 @@ const {
   mockDeleteUser,
   profileChain,
   surveyChain,
-  completionsChain,
-  userProtocolsChain,
   chatSessionsChain,
-  chatMessagesChain,
   mockSupabase,
   resetChains,
 } = vi.hoisted(() => {
@@ -75,7 +72,7 @@ const {
     }
   }
 
-  return { mockDeleteUser, profileChain, surveyChain, completionsChain, userProtocolsChain, chatSessionsChain, chatMessagesChain, mockSupabase, resetChains };
+  return { mockDeleteUser, profileChain, surveyChain, chatSessionsChain, mockSupabase, resetChains };
 });
 
 vi.mock("@/lib/api/helpers", () => {
