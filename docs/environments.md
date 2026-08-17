@@ -23,7 +23,7 @@
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | All | Supabase anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server | Supabase admin key (account deletion, admin ops) |
 | `ANTHROPIC_API_KEY` | Yes | Server | Claude API key for AI chat |
-| `ANTHROPIC_MODEL` | No | Server | Model override (default: `claude-sonnet-4-20250514`) |
+| `ANTHROPIC_MODEL` | No | Server | Model override (default: `claude-sonnet-4-6`) |
 | `PINECONE_API_KEY` | Yes | Server | Pinecone vector DB key |
 | `PINECONE_INDEX` | Yes | Server | Pinecone index name (`huberman-health`) |
 | `VOYAGE_API_KEY` | Yes | Server | Voyage AI embedding key |

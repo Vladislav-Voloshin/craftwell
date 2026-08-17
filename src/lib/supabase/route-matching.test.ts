@@ -17,9 +17,19 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/protocols/sleep-optimization")).toBe(true);
   });
 
-  it("allows /privacy and /terms", () => {
+  it("allows public marketing and offline routes", () => {
+    expect(isPublicRoute("/pricing")).toBe(true);
     expect(isPublicRoute("/privacy")).toBe(true);
     expect(isPublicRoute("/terms")).toBe(true);
+    expect(isPublicRoute("/offline")).toBe(true);
+    expect(isPublicRoute("/sw.js")).toBe(true);
+  });
+
+  it("allows anonymous and provider-authenticated API endpoints", () => {
+    expect(isPublicRoute("/api/health")).toBe(true);
+    expect(isPublicRoute("/api/waitlist")).toBe(true);
+    expect(isPublicRoute("/api/stripe/webhook")).toBe(true);
+    expect(isPublicRoute("/api/revenuecat/webhook")).toBe(true);
   });
 
   it("blocks authenticated-only routes", () => {
@@ -32,6 +42,9 @@ describe("isPublicRoute", () => {
   it("blocks API routes", () => {
     expect(isPublicRoute("/api/chat")).toBe(false);
     expect(isPublicRoute("/api/search")).toBe(false);
+    expect(isPublicRoute("/api/stripe/checkout")).toBe(false);
+    expect(isPublicRoute("/api/stripe/portal")).toBe(false);
+    expect(isPublicRoute("/api/waitlist/admin")).toBe(false);
   });
 
   it("allows static files (robots.txt, sitemap.xml, manifest.json)", () => {

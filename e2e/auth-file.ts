@@ -10,6 +10,6 @@ export const AUTH_DIR = path.join(__dirname, "../.auth");
  * file, so Supabase refresh-token rotation in one worker can't invalidate
  * another worker's session (the root cause of the `full`-suite flakiness).
  */
-export function authFileForWorker(workerIndex: number): string {
-  return path.join(AUTH_DIR, `user-${workerIndex}.json`);
+export function authFileForWorker(parallelIndex: number): string {
+  return path.join(AUTH_DIR, `user-${parallelIndex}.json`);
 }

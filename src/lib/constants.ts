@@ -37,6 +37,8 @@ export const SEARCH_VECTOR_PAGE_SIZE = 10;
 export const RELATED_PROTOCOLS_COUNT = 4;
 
 // ── AI Model ───────────────────────────────────────────────────────────────
+/** Default Claude model. Keep aligned with Anthropic's active model list. */
+export const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 /** Max tokens the model should generate per response */
 export const CHAT_MAX_TOKENS = 1024;
 

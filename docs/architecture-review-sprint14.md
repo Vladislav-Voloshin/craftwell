@@ -222,7 +222,7 @@ When a chat session is deleted, PostgreSQL must find all related `chat_messages`
 ### 3.1 Chat Implementation Analysis
 
 The chat route (`src/app/api/chat/route.ts`) uses:
-- **Model:** `claude-sonnet-4-20250514` (Claude Sonnet 4)
+- **Model:** `claude-sonnet-4-6` (Claude Sonnet 4.6)
 - **Max output tokens:** 1,024
 - **Streaming:** Yes (SSE)
 - **RAG context:** Up to 5 Pinecone matches injected into system prompt

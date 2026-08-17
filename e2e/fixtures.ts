@@ -7,7 +7,7 @@
  * pages then redirected to /auth (~8 flaky failures across 05/06/15/17).
  *
  * Fix: each worker signs in as its OWN seeded account
- * (e2e-test+w{workerIndex}@craftwell.app) exactly once, persists that session
+ * (e2e-test+w{parallelIndex}@craftwell.app) exactly once, persists that session
  * to a worker-specific storageState file, and reuses it for every test on that
  * worker. No two workers ever share a session, so there is no rotation race.
  *
@@ -44,7 +44,7 @@ export const test = base.extend<NoTestFixtures, AuthWorkerFixtures>({
 
   // Worker-scoped: runs at most once per worker. Signs the worker's user in via
   // the real /auth UI (so onboarding is handled the same way as before) and
-  // saves the resulting Supabase session to .auth/user-${workerIndex}.json.
+  // saves the resulting Supabase session to .auth/user-${parallelIndex}.json.
   workerStorageState: [
     async ({ browser, workerAuth }, use, workerInfo) => {
       if (!workerAuth) {
@@ -52,8 +52,10 @@ export const test = base.extend<NoTestFixtures, AuthWorkerFixtures>({
         return;
       }
 
-      const file = authFileForWorker(workerInfo.workerIndex);
-      const user = testUserForWorker(workerInfo.workerIndex);
+      // parallelIndex is stable when Playwright restarts a failed worker;
+      // workerIndex is not and can grow beyond the seeded account pool.
+      const file = authFileForWorker(workerInfo.parallelIndex);
+      const user = testUserForWorker(workerInfo.parallelIndex);
 
       if (!existsSync(AUTH_DIR)) mkdirSync(AUTH_DIR, { recursive: true });
 

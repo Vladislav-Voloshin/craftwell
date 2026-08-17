@@ -7,6 +7,9 @@
 
 import { test, expect } from "./fixtures";
 
+// Auth-page presentation does not need a seeded signed-in session.
+test.use({ workerAuth: false });
+
 test.describe("Auth Page Redesign", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/auth");

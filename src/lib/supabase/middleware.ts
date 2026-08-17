@@ -5,9 +5,28 @@ import { isPublicRoute } from './route-matching';
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const pathname = request.nextUrl.pathname;
+  const publicRoute = isPublicRoute(pathname);
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  }
+
+  // Requests without a Supabase session cookie cannot be authenticated. Avoid
+  // a remote auth lookup for them: this keeps public pages available during
+  // transient auth outages and makes protected API rejection deterministic.
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some(({ name }) => name.startsWith('sb-') && name.includes('-auth-token'));
+
+  if (!hasAuthCookie) {
+    if (publicRoute) return NextResponse.next({ request });
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth';
+    return NextResponse.redirect(url);
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -38,9 +57,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Redirect unauthenticated users to login (except public routes)
-  if (!user && !isPublicRoute(request.nextUrl.pathname)) {
+  if (!user && !publicRoute) {
     // API routes get a 401 JSON response instead of a redirect
-    if (request.nextUrl.pathname.startsWith('/api')) {
+    if (pathname.startsWith('/api')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const url = request.nextUrl.clone();
@@ -51,9 +70,9 @@ export async function updateSession(request: NextRequest) {
   // Redirect authenticated users who haven't completed onboarding
   if (
     user &&
-    !request.nextUrl.pathname.startsWith('/onboarding') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/api')
+    !pathname.startsWith('/onboarding') &&
+    !pathname.startsWith('/auth') &&
+    !pathname.startsWith('/api')
   ) {
     const { data: profile } = await supabase
       .from('users')

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { ensureAuthenticated } from "./helpers";
+import { ensureAuthenticated, gotoAuthenticated } from "./helpers";
 
 test.describe("Protocol Favorites", () => {
   test.beforeEach(async ({ page }) => {
@@ -80,12 +80,12 @@ test.describe("Protocol Favorites", () => {
   });
 
   test("shows favorite button on protocol detail page", async ({ page }) => {
-    // Navigate to detail page
+    // Use a full-page load: RSC client navigation can leave only the route-title
+    // alert rendered when the backend is under parallel test load.
     const firstCard = page.locator("main a[href^='/protocols/']").first();
-    await firstCard.click();
-    await page.waitForURL(/\/protocols\/.+/);
-    // Wait for SSR page to fully render before asserting interactive elements
-    await page.waitForLoadState("domcontentloaded");
+    const protocolHref = await firstCard.getAttribute("href");
+    expect(protocolHref).toBeTruthy();
+    await gotoAuthenticated(page, protocolHref!);
 
     // Should see favorite button
     const heartButton = page.locator("button[aria-label*='favorites']");
@@ -94,8 +94,9 @@ test.describe("Protocol Favorites", () => {
 
   test("can toggle favorite on protocol detail page", async ({ page }) => {
     const firstCard = page.locator("main a[href^='/protocols/']").first();
-    await firstCard.click();
-    await page.waitForURL(/\/protocols\/.+/);
+    const protocolHref = await firstCard.getAttribute("href");
+    expect(protocolHref).toBeTruthy();
+    await gotoAuthenticated(page, protocolHref!);
 
     const heartButton = page.locator("button[aria-label*='favorites']");
     await expect(heartButton).toBeVisible({ timeout: 15000 });
