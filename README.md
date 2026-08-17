@@ -88,7 +88,7 @@ Create a `.env.local` file with the following:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key for chat and protocol extraction |
-| `ANTHROPIC_MODEL` | No | Claude model ID (default: `claude-sonnet-4-20250514`) |
+| `ANTHROPIC_MODEL` | No | Claude model ID (default: `claude-sonnet-4-6`) |
 | `PINECONE_API_KEY` | Yes | Pinecone vector database key |
 | `PINECONE_INDEX` | Yes | Pinecone index name (default: `craftwell`) |
 | `VOYAGE_API_KEY` | Yes | Voyage AI key for text embeddings |

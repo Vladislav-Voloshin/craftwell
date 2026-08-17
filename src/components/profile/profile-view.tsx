@@ -84,7 +84,7 @@ export function ProfileView({
   useEffect(() => { fetchStreaks(); }, [fetchStreaks]);
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     router.push("/");
   }
 
@@ -94,7 +94,7 @@ export function ProfileView({
     try {
       const res = await fetch("/api/profile", { method: "DELETE" });
       if (res.ok) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         window.location.href = "/auth";
       } else {
         const data = await res.json();

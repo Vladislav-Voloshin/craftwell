@@ -137,7 +137,7 @@ Event types:
 - `done` -- Stream complete
 
 **Implementation notes:**
-- The Claude model is configured via the `ANTHROPIC_MODEL` environment variable (defaults to `claude-sonnet-4-20250514`).
+- The Claude model is configured via the `ANTHROPIC_MODEL` environment variable (defaults to `claude-sonnet-4-6`).
 - Chat history is loaded with a single joined query (session + messages) to avoid N+1 query patterns.
 - When Pinecone is unreachable, the route degrades gracefully by skipping RAG context rather than returning an error.
 

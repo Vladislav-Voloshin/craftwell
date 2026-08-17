@@ -156,18 +156,12 @@ export async function signInTestUser(page: Page) {
   );
 
   if (hasAuthCookie) {
-    try {
-      // The full project already loads a per-worker session into every test.
-      // Reuse it instead of repeatedly hitting Supabase's password-login limit.
-      const profileResponse = await page.request.get("/api/profile");
-      if (profileResponse.ok()) {
-        await page.goto("/protocols", { waitUntil: "domcontentloaded" });
-        return;
-      }
-    } catch {
-      // Fall through to a fresh login when the stored session is stale.
-    }
-    await page.context().clearCookies();
+    // The full project loads a freshly-created per-worker session into every
+    // test. Reuse it instead of probing Supabase and repeatedly hitting its
+    // password-login limit. Protected navigation helpers still re-authenticate
+    // if the session is genuinely rejected later.
+    await page.goto("/protocols", { waitUntil: "domcontentloaded" });
+    return;
   }
 
   await signInAs(page, { email: TEST_USER.email, password: TEST_USER.password });
