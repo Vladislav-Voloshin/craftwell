@@ -10,7 +10,7 @@
  */
 
 import { test, expect } from "./fixtures";
-import { signInTestUser } from "./helpers";
+import { gotoAuthenticated, signInTestUser } from "./helpers";
 
 const MOCK_SOURCES = [
   { type: "podcast", title: "Huberman Lab: Sleep Toolkit", chunk_id: "c1" },
@@ -58,8 +58,10 @@ async function mockChatNoSources(page: import("@playwright/test").Page) {
 test.describe("Citation Display", () => {
   test.beforeEach(async ({ page }) => {
     await signInTestUser(page);
-    await page.goto("/chat");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/chat");
+    await expect(
+      page.getByPlaceholder(/ask about health protocols/i)
+    ).toBeVisible({ timeout: 20000 });
   });
 
   test("assistant response displays source citations", async ({ page }) => {
