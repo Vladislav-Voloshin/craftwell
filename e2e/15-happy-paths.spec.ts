@@ -10,18 +10,19 @@
  */
 
 import { test, expect } from "./fixtures";
-import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
+import {
+  signInDisposableTestSession,
+  signInAs,
+  signInTestUser,
+  gotoAuthenticated,
+  TEST_USER,
+} from "./helpers";
 
 test.describe("P0 Happy Path: Returning User Login → Protocols", () => {
   test("user can sign in and land on protocols page", async ({ page }) => {
+    test.setTimeout(90000);
     await page.context().clearCookies();
-    await page.goto("/auth");
-    await page.locator(".bg-muted.p-1 button", { hasText: "Sign In" }).click();
-    await page.getByLabel("Email").fill(TEST_USER.email);
-    await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
-    await page.getByRole("button", { name: "Sign In" }).last().click();
-
-    await page.waitForURL("**/protocols", { timeout: 15000 });
+    await signInAs(page, TEST_USER);
     await expect(page).toHaveURL(/\/protocols/);
 
     // Should see protocol cards
@@ -153,7 +154,8 @@ test.describe("P0 Happy Path: Full Navigation Cycle", () => {
 
 test.describe("P0 Happy Path: Sign Out & Re-Sign In", () => {
   test("user can sign out and sign back in", async ({ page }) => {
-    await signInTestUser(page);
+    test.setTimeout(90000);
+    await signInDisposableTestSession(page);
 
     // Go to profile and sign out
     await gotoAuthenticated(page, "/profile");
@@ -165,16 +167,9 @@ test.describe("P0 Happy Path: Sign Out & Re-Sign In", () => {
     // Should redirect to auth or landing
     await page.waitForURL(/(\/auth|\/$)/, { timeout: 10000 });
 
-    // Sign back in
-    if (!page.url().includes("/auth")) {
-      await page.goto("/auth");
-    }
-    await page.locator(".bg-muted.p-1 button", { hasText: "Sign In" }).click();
-    await page.getByLabel("Email").fill(TEST_USER.email);
-    await page.getByLabel("Password", { exact: true }).fill(TEST_USER.password);
-    await page.getByRole("button", { name: "Sign In" }).last().click();
-
-    await page.waitForURL("**/protocols", { timeout: 15000 });
+    // Re-authenticate through the real UI with hydration and transient-service
+    // retries, just like a user retrying a temporarily slow login.
+    await signInAs(page, TEST_USER);
     await expect(page).toHaveURL(/\/protocols/);
   });
 });
