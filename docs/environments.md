@@ -30,6 +30,7 @@
 | `YOUTUBE_API_KEY` | No | Server | YouTube data API (ingestion only) |
 | `ADMIN_API_KEY` | Yes | Server | Auth for `/api/ingest` admin endpoint |
 | `NEXT_PUBLIC_APP_URL` | No | Client | App base URL (default: auto-detected) |
+| `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No | Client | Shows Apple Sign-In only when its Supabase provider is enabled |
 | `SENTRY_ORG` | No | Build | Sentry organization slug |
 | `SENTRY_PROJECT` | No | Build | Sentry project slug |
 | `LOG_LEVEL` | No | Server | Pino log level (default: `info`) |
