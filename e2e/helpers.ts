@@ -168,6 +168,18 @@ export async function signInTestUser(page: Page) {
 }
 
 /**
+ * Replace the context's shared worker session with a disposable session.
+ *
+ * Tests that exercise sign-out must not revoke the refresh token stored by the
+ * worker fixture, because later tests load that same storage state. A fresh
+ * session lets the test validate real sign-out while preserving sibling tests.
+ */
+export async function signInDisposableTestSession(page: Page) {
+  await page.context().clearCookies();
+  await signInAs(page, { email: TEST_USER.email, password: TEST_USER.password });
+}
+
+/**
  * Navigate to a protected page, re-authenticating if redirected to /auth.
  * Retries on net::ERR_ABORTED (CI flakiness) and handles session expiry.
  * Use this instead of bare page.goto() for authenticated routes.

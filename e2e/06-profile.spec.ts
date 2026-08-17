@@ -5,7 +5,12 @@
  */
 
 import { test, expect } from "./fixtures";
-import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
+import {
+  signInDisposableTestSession,
+  signInTestUser,
+  gotoAuthenticated,
+  TEST_USER,
+} from "./helpers";
 
 test.describe("Profile Page", () => {
   test.beforeEach(async ({ page }) => {
@@ -37,18 +42,23 @@ test.describe("Profile Page", () => {
     await expect(signOutBtn).toBeVisible();
   });
 
+  test("protocol stack section exists on profile", async ({ page }) => {
+    await expect(page.locator("body")).toContainText(/Protocol|Browse/i);
+  });
+});
+
+test.describe("Profile Sign Out", () => {
   test("sign out redirects to landing or auth page", async ({ page }) => {
-    const signOutBtn = page.getByRole("button", { name: /sign out/i });
-    await signOutBtn.click();
+    await signInDisposableTestSession(page);
+    await gotoAuthenticated(page, "/profile");
+    await page.getByText(TEST_USER.email).waitFor({ timeout: 15000 });
+
+    await page.getByRole("button", { name: /sign out/i }).click();
 
     // After sign out, should redirect to landing page or auth
     await page.waitForURL(/(\/auth|\/$)/, { timeout: 10000 });
     const url = page.url();
     expect(url.includes("/auth") || url.endsWith("/")).toBeTruthy();
-  });
-
-  test("protocol stack section exists on profile", async ({ page }) => {
-    await expect(page.locator("body")).toContainText(/Protocol|Browse/i);
   });
 });
 
