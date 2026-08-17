@@ -85,6 +85,7 @@ test.describe("Chat Interface", () => {
 
     const responseText = await assistantBubble.textContent();
     expect(responseText?.length).toBeGreaterThan(10);
+    expect(responseText).not.toMatch(/failed to generate response|something went wrong/i);
   });
 
   test("can send message with Enter key", async ({ page }) => {

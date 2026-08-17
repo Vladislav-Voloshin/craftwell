@@ -11,6 +11,7 @@ import {
   PINECONE_TIMEOUT_MS,
   PINECONE_TOP_K,
   CHAT_SESSION_TITLE_MAX_LENGTH,
+  DEFAULT_ANTHROPIC_MODEL,
 } from "@/lib/constants";
 import { z } from "zod";
 import { getRequestId } from "@/lib/api/request-id";
@@ -124,44 +125,71 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         let fullContent = "";
         let streamFailed = false;
+        let responseClosed = false;
+        const isClosedControllerError = (err: unknown) =>
+          err instanceof TypeError &&
+          ((err as NodeJS.ErrnoException).code === "ERR_INVALID_STATE" ||
+            /controller is already closed|invalid state/i.test(err.message));
+
+        const safeEnqueue = (event: unknown) => {
+          if (responseClosed) return false;
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+            );
+            return true;
+          } catch (err) {
+            if (isClosedControllerError(err)) {
+              responseClosed = true;
+              return false;
+            }
+            throw err;
+          }
+        };
+
+        const safeClose = () => {
+          if (responseClosed) return;
+          try {
+            controller.close();
+          } catch (err) {
+            if (!isClosedControllerError(err)) throw err;
+          } finally {
+            responseClosed = true;
+          }
+        };
 
         try {
           const response = anthropic.messages.stream({
-            model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+            model: process.env.ANTHROPIC_MODEL || DEFAULT_ANTHROPIC_MODEL,
             max_tokens: CHAT_MAX_TOKENS,
             system: systemPrompt,
             messages,
           });
 
           // Send meta (session_id + sources) only after stream starts successfully
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "meta", session_id: currentSessionId, sources })}\n\n`,
-            ),
-          );
-
-          for await (const event of response) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              const text = event.delta.text;
-              fullContent += text;
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ type: "text", text })}\n\n`,
-                ),
-              );
+          if (!safeEnqueue({ type: "meta", session_id: currentSessionId, sources })) {
+            streamFailed = true;
+          } else {
+            for await (const event of response) {
+              if (
+                event.type === "content_block_delta" &&
+                event.delta.type === "text_delta"
+              ) {
+                const text = event.delta.text;
+                fullContent += text;
+                if (!safeEnqueue({ type: "text", text })) {
+                  streamFailed = true;
+                  break;
+                }
+              }
             }
           }
         } catch (err) {
           streamFailed = true;
-          log.error({ err }, "Stream error");
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "error", error: "Failed to generate response" })}\n\n`,
-            ),
-          );
+          if (!responseClosed) {
+            log.error({ err }, "Stream error");
+            safeEnqueue({ type: "error", error: "Failed to generate response" });
+          }
         }
 
         // Post-stream DB cleanup — sequential to prevent inconsistent state.
@@ -210,10 +238,8 @@ export async function POST(request: NextRequest) {
           log.error({ err: cleanupErr }, "Post-stream cleanup threw unexpectedly");
         }
 
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`),
-        );
-        controller.close();
+        safeEnqueue({ type: "done" });
+        safeClose();
       },
     });
 

@@ -528,6 +528,17 @@ describe("POST /api/chat — RAG and system prompt", () => {
     expect(streamCall.model).toBe("claude-test-model");
     delete process.env.ANTHROPIC_MODEL;
   });
+
+  it("uses an active Claude model by default", async () => {
+    setupDefaultMocks();
+    mockMessagesStream.mockReturnValue(makeAnthropicStream(["Response"]));
+    delete process.env.ANTHROPIC_MODEL;
+
+    await POST(makeRequest({ message: "hi", session_id: SESSION_ID }));
+
+    const streamCall = mockMessagesStream.mock.calls[0][0] as { model: string };
+    expect(streamCall.model).toBe("claude-sonnet-4-6");
+  });
 });
 
 describe("POST /api/chat — post-stream cleanup", () => {
@@ -603,6 +614,30 @@ describe("POST /api/chat — post-stream cleanup", () => {
 
     // Still exactly 4 from() calls — session update happens but NO assistant
     // message insert, even though fullContent is non-empty.
+    expect(mockFrom.mock.calls.length).toBe(4);
+  });
+
+  it("handles client cancellation without saving a partial response", async () => {
+    mockFrom
+      .mockReturnValueOnce(makeChain({ error: null }))           // chat_messages.insert (user)
+      .mockReturnValueOnce(makeChain({ data: [], error: null })) // history
+      .mockReturnValueOnce(makeChain({ data: null }))            // survey
+      .mockReturnValueOnce(makeChain({ error: null }));          // chat_sessions.update only
+
+    mockMessagesStream.mockReturnValue(
+      (async function* () {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        yield { type: "content_block_delta", delta: { type: "text_delta", text: "Partial" } };
+      })()
+    );
+
+    const res = await POST(makeRequest({ message: "hi", session_id: SESSION_ID }));
+    const reader = res.body!.getReader();
+    await reader.read(); // meta event
+    await reader.cancel();
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    // User insert + history + survey + session update; no assistant insert.
     expect(mockFrom.mock.calls.length).toBe(4);
   });
 
