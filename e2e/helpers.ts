@@ -150,6 +150,26 @@ export async function signInAs(
  * Sign in with the current worker's dedicated test account via the auth page.
  */
 export async function signInTestUser(page: Page) {
+  const cookies = await page.context().cookies();
+  const hasAuthCookie = cookies.some(
+    ({ name }) => name.startsWith("sb-") && name.includes("-auth-token")
+  );
+
+  if (hasAuthCookie) {
+    try {
+      // The full project already loads a per-worker session into every test.
+      // Reuse it instead of repeatedly hitting Supabase's password-login limit.
+      const profileResponse = await page.request.get("/api/profile");
+      if (profileResponse.ok()) {
+        await page.goto("/protocols", { waitUntil: "domcontentloaded" });
+        return;
+      }
+    } catch {
+      // Fall through to a fresh login when the stored session is stale.
+    }
+    await page.context().clearCookies();
+  }
+
   await signInAs(page, { email: TEST_USER.email, password: TEST_USER.password });
 }
 

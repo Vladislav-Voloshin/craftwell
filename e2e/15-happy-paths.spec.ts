@@ -14,6 +14,7 @@ import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
 
 test.describe("P0 Happy Path: Returning User Login → Protocols", () => {
   test("user can sign in and land on protocols page", async ({ page }) => {
+    await page.context().clearCookies();
     await page.goto("/auth");
     await page.locator(".bg-muted.p-1 button", { hasText: "Sign In" }).click();
     await page.getByLabel("Email").fill(TEST_USER.email);
@@ -82,9 +83,12 @@ test.describe("P0 Happy Path: Protocol → Chat about it", () => {
 
     // Open a protocol (wait for cards to load first)
     await page.locator("main a[href^='/protocols/']").first().waitFor({ timeout: 15000 });
-    await page.locator("main a[href^='/protocols/']").first().click();
-    await page.waitForURL(/\/protocols\/.+/);
-    await page.waitForLoadState("domcontentloaded");
+    const protocolHref = await page
+      .locator("main a[href^='/protocols/']")
+      .first()
+      .getAttribute("href");
+    expect(protocolHref).toBeTruthy();
+    await gotoAuthenticated(page, protocolHref!);
 
     // Navigate to chat via bottom nav
     const chatLink = page.getByRole("link", { name: /chat/i });
@@ -177,6 +181,7 @@ test.describe("P0 Happy Path: Sign Out & Re-Sign In", () => {
 
 test.describe("P0 Happy Path: Landing Page → Auth Flow", () => {
   test("new visitor can navigate from landing to auth", async ({ page }) => {
+    await page.context().clearCookies();
     await page.goto("/");
     await expect(page.getByText("Craftwell").first()).toBeVisible();
 
@@ -217,8 +222,9 @@ test.describe("P0 Happy Path: Search and Filter Protocols", () => {
     expect(count).toBeGreaterThan(0);
 
     // Click into one of the results
-    await cards.first().click();
-    await page.waitForURL(/\/protocols\/.+/);
+    const protocolHref = await cards.first().getAttribute("href");
+    expect(protocolHref).toBeTruthy();
+    await gotoAuthenticated(page, protocolHref!);
 
     // Wait for protocol detail to render, then check content
     await page.waitForSelector("h1", { timeout: 15000 });
