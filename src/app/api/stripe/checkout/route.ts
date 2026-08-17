@@ -46,8 +46,20 @@ export async function POST(request: NextRequest) {
     if (body instanceof Response) return body;
 
     const { plan } = body;
-    stripeEnv(); // validate all Stripe env vars before hitting the API
-    const stripe = getStripe();
+    let stripe: ReturnType<typeof getStripe>;
+    try {
+      stripeEnv(); // validate all Stripe env vars before hitting the API
+      stripe = getStripe();
+    } catch (err) {
+      logger.error(
+        { err, requestId, userId: user.id },
+        "Stripe checkout unavailable: configuration is missing or invalid"
+      );
+      return apiError(
+        "Checkout is temporarily unavailable. Your account was not charged.",
+        503
+      );
+    }
     const planConfig = PLANS[plan as PlanType];
 
     // Lifetime cap check — best-effort; race conditions are low-risk at 500-unit scale

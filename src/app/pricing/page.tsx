@@ -37,9 +37,11 @@ export default function PricingPage() {
   const router = useRouter();
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   async function startCheckout(plan: Plan) {
     setLoadingPlan(plan);
+    setCheckoutError(null);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -51,14 +53,29 @@ export default function PricingPage() {
         return;
       }
       if (res.status === 410) {
-        alert("The Founding Member lifetime plan is sold out.");
-        setLoadingPlan(null);
+        setCheckoutError("The Founding Member lifetime plan is sold out.");
         return;
       }
-      const data = (await res.json()) as { url?: string };
-      if (data.url) window.location.href = data.url;
-      else setLoadingPlan(null);
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok) {
+        setCheckoutError(
+          data.error ??
+            "Checkout could not be started. Your account was not charged."
+        );
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setCheckoutError(
+        "Checkout could not be started. Your account was not charged."
+      );
     } catch {
+      setCheckoutError(
+        "Checkout could not be reached. Check your connection and try again."
+      );
+    } finally {
       setLoadingPlan(null);
     }
   }
@@ -171,6 +188,14 @@ export default function PricingPage() {
             </Button>
           </TierCard>
         </div>
+        {checkoutError && (
+          <p
+            role="alert"
+            className="max-w-2xl mx-auto mt-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-sm text-destructive"
+          >
+            {checkoutError}
+          </p>
+        )}
       </section>
 
       {/* FAQ */}
