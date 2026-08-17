@@ -88,12 +88,14 @@ const mockUser = { id: "user-abc", email: "test@example.com" };
 describe("POST /api/stripe/checkout", () => {
   // Import helpers once — vi.clearAllMocks() preserves implementations between tests
   let helpers: typeof import("@/lib/api/helpers");
+  let env: typeof import("@/lib/env");
 
   beforeEach(async () => {
     // Clear call history only — keeps the chained mock return values intact
     vi.clearAllMocks();
 
     helpers = await import("@/lib/api/helpers");
+    env = await import("@/lib/env");
     vi.mocked(helpers.requireAuth).mockResolvedValue({ user: mockUser, supabase: {} as never });
     vi.mocked(helpers.parseBody).mockResolvedValue({ plan: "monthly" });
     vi.mocked(helpers.apiError).mockImplementation((msg, status) =>
@@ -109,6 +111,20 @@ describe("POST /api/stripe/checkout", () => {
     mockSupabaseSelect.mockResolvedValue({ count: 0, error: null });
 
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+  });
+
+  it("returns a safe 503 when Stripe is not configured", async () => {
+    vi.mocked(env.stripeEnv).mockImplementationOnce(() => {
+      throw new Error("Missing environment variable: STRIPE_SECRET_KEY");
+    });
+
+    const { POST } = await import("./route");
+    const res = await POST(makeRequest({ plan: "monthly" }));
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({
+      error: "Checkout is temporarily unavailable. Your account was not charged.",
+    });
   });
 
   it("returns 401 when not authenticated", async () => {
