@@ -29,7 +29,7 @@ export default defineConfig<AuthOptions>({
 
     // ── Full suite — each parallel worker authenticates as its OWN account ──
     // `workerAuth: true` activates the per-worker storageState fixture
-    // (e2e/fixtures.ts): every worker signs in as e2e-test+w{workerIndex} once
+    // (e2e/fixtures.ts): every worker signs in as e2e-test+w{parallelIndex} once
     // and reuses that session, so Supabase refresh-token rotation in one worker
     // can't invalidate another's (the cause of the prior /auth-redirect flakes).
     // Excludes 02-auth.spec.ts which tests unauthenticated flows — already
