@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { StreaksResponse as StreakData } from "@/lib/types/database";
 import clientLogger from "@/lib/client-logger";
 
@@ -12,15 +12,20 @@ export function useProtocolCompletions(
   const [completedToolIds, setCompletedToolIds] = useState<Set<string>>(new Set());
   const [togglingToolId, setTogglingToolId] = useState<string | null>(null);
   const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const mutationVersion = useRef(0);
 
   const fetchCompletions = useCallback(async () => {
     if (!isLoggedIn || !isActive) return;
+    const versionAtRequestStart = mutationVersion.current;
     try {
       const tz = new Date().getTimezoneOffset();
       const res = await fetch(`/api/protocols/completions?protocol_id=${protocolId}&tz_offset=${tz}`);
       if (res.ok) {
         const data = await res.json();
-        setCompletedToolIds(new Set(data.completed_tool_ids));
+        // A slower initial GET must not overwrite a newer successful toggle.
+        if (mutationVersion.current === versionAtRequestStart) {
+          setCompletedToolIds(new Set(data.completed_tool_ids));
+        }
       }
     } catch (err) {
       clientLogger.warn("[Completions] Failed to fetch:", err);
@@ -47,6 +52,7 @@ export function useProtocolCompletions(
   }, [fetchCompletions, fetchStreaks]);
 
   async function toggleToolCompletion(toolId: string) {
+    mutationVersion.current += 1;
     setTogglingToolId(toolId);
     try {
       const res = await fetch("/api/protocols/completions", {
@@ -59,12 +65,17 @@ export function useProtocolCompletions(
         }),
       });
       if (res.ok) {
+        const data = (await res.json()) as {
+          status: "completed" | "uncompleted";
+        };
+        // Invalidate reads that may have started while this mutation was in flight.
+        mutationVersion.current += 1;
         setCompletedToolIds((prev) => {
           const next = new Set(prev);
-          if (next.has(toolId)) {
-            next.delete(toolId);
-          } else {
+          if (data.status === "completed") {
             next.add(toolId);
+          } else {
+            next.delete(toolId);
           }
           return next;
         });
