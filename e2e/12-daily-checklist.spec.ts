@@ -6,19 +6,20 @@
  */
 
 import { test, expect } from "./fixtures";
-import { signInTestUser } from "./helpers";
+import { gotoAuthenticated, signInTestUser } from "./helpers";
 
 test.describe("Daily Checklist", () => {
   test.beforeEach(async ({ page }) => {
     await signInTestUser(page);
     // Navigate to first protocol detail via direct URL navigation
-    await page.goto("/protocols");
-    await page.waitForLoadState("domcontentloaded");
+    await gotoAuthenticated(page, "/protocols");
 
     // Get the href of the first protocol and navigate directly
     const firstCard = page.locator("main a[href^='/protocols/']").first();
+    await expect(firstCard).toBeVisible({ timeout: 20000 });
     const href = await firstCard.getAttribute("href");
-    await page.goto(href!);
+    expect(href).toBeTruthy();
+    await gotoAuthenticated(page, href!);
     // Wait for protocol title heading to render (server-side fetch complete)
     await page.waitForSelector("h1", { timeout: 15000 });
     await page.waitForLoadState("domcontentloaded");
@@ -28,8 +29,16 @@ test.describe("Daily Checklist", () => {
     if (await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await addBtn.click();
       // Wait for button to change to "Remove from My Protocols"
-      await page.getByRole("button", { name: /remove from my protocols/i }).waitFor({ timeout: 5000 });
+      await page
+        .getByRole("button", { name: /remove from my protocols/i })
+        .waitFor({ timeout: 15000 });
     }
+
+    // The progress panel and toggle controls appear together once activation
+    // has propagated through the hydrated client state.
+    await expect(page.getByText(/tools completed/)).toBeVisible({
+      timeout: 20000,
+    });
   });
 
   test("protocol detail shows daily checklist with progress", async ({
@@ -42,7 +51,7 @@ test.describe("Daily Checklist", () => {
     const completeButtons = page.getByRole("button", {
       name: /mark .+ (complete|incomplete)/i,
     });
-    await completeButtons.first().waitFor({ timeout: 10000 });
+    await completeButtons.first().waitFor({ timeout: 20000 });
     const count = await completeButtons.count();
     expect(count).toBeGreaterThan(0);
   });

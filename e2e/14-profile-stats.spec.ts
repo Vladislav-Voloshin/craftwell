@@ -7,6 +7,23 @@
 
 import { test, expect } from "./fixtures";
 import { signInTestUser, gotoAuthenticated, TEST_USER } from "./helpers";
+import type { Page } from "@playwright/test";
+
+async function profileHasActiveProtocols(page: Page) {
+  const statsHeading = page.getByText("Streaks & Stats", { exact: true });
+  const emptyState = page.getByText(/No active protocols yet/i);
+
+  await expect
+    .poll(
+      async () =>
+        (await statsHeading.isVisible().catch(() => false)) ||
+        (await emptyState.isVisible().catch(() => false)),
+      { timeout: 15000 }
+    )
+    .toBe(true);
+
+  return statsHeading.isVisible();
+}
 
 test.describe("Profile Stats & Streaks", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,9 +39,7 @@ test.describe("Profile Stats & Streaks", () => {
 
   test("profile shows Streaks & Stats section when protocols are active", async ({ page }) => {
     const body = page.locator("body");
-    const hasActiveProtocols = await body.textContent().then((t) =>
-      /Active Protocols/i.test(t ?? "")
-    );
+    const hasActiveProtocols = await profileHasActiveProtocols(page);
     // Stats section is conditionally rendered — only when user has active protocols
     if (hasActiveProtocols) {
       await expect(body).toContainText(/Streak|Stats/i);
@@ -36,9 +51,7 @@ test.describe("Profile Stats & Streaks", () => {
 
   test("stats section shows Active Protocols count when protocols are active", async ({ page }) => {
     const body = page.locator("body");
-    const hasActiveProtocols = await body.textContent().then((t) =>
-      /Active Protocols/i.test(t ?? "")
-    );
+    const hasActiveProtocols = await profileHasActiveProtocols(page);
     // Only assert the stat labels when the stats section is rendered
     if (hasActiveProtocols) {
       await expect(body).toContainText(/Active Protocols/i);
@@ -50,9 +63,7 @@ test.describe("Profile Stats & Streaks", () => {
 
   test("stats section shows Total Days when protocols are active", async ({ page }) => {
     const body = page.locator("body");
-    const hasActiveProtocols = await body.textContent().then((t) =>
-      /Active Protocols/i.test(t ?? "")
-    );
+    const hasActiveProtocols = await profileHasActiveProtocols(page);
     if (hasActiveProtocols) {
       await expect(body).toContainText(/Total Days/i);
     }
@@ -60,9 +71,7 @@ test.describe("Profile Stats & Streaks", () => {
 
   test("stats section shows Best Streak when protocols are active", async ({ page }) => {
     const body = page.locator("body");
-    const hasActiveProtocols = await body.textContent().then((t) =>
-      /Active Protocols/i.test(t ?? "")
-    );
+    const hasActiveProtocols = await profileHasActiveProtocols(page);
     if (hasActiveProtocols) {
       await expect(body).toContainText(/Best Streak/i);
     }
