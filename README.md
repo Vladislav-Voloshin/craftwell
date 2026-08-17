@@ -96,6 +96,7 @@ Create a `.env.local` file with the following:
 | `ADMIN_API_KEY` | No | Protects the `/api/ingest` endpoint |
 | `LOG_LEVEL` | No | Pino log level (default: `info` in production, `debug` in dev) |
 | `NEXT_PUBLIC_APP_URL` | No | App URL (default: `http://localhost:3000`) |
+| `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No | Set to `true` only after Apple is enabled in Supabase (default: `false`) |
 
 ## Scripts
 

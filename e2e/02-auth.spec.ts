@@ -36,9 +36,9 @@ test.describe("Auth Page", () => {
     await expect(googleBtn).toBeVisible();
   });
 
-  test("shows Apple button (Sign in with Apple)", async ({ page }) => {
+  test("hides Apple sign-in until its provider is enabled", async ({ page }) => {
     const appleBtn = page.getByRole("button", { name: /apple/i });
-    await expect(appleBtn).toBeVisible();
+    await expect(appleBtn).toHaveCount(0);
   });
 
   test("has Sign In and Sign Up tabs", async ({ page }) => {
