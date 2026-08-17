@@ -11,15 +11,9 @@ import { gotoAuthenticated, signInTestUser } from "./helpers";
 test.describe("Daily Checklist", () => {
   test.beforeEach(async ({ page }) => {
     await signInTestUser(page);
-    // Navigate to first protocol detail via direct URL navigation
-    await gotoAuthenticated(page, "/protocols");
-
-    // Get the href of the first protocol and navigate directly
-    const firstCard = page.locator("main a[href^='/protocols/']").first();
-    await expect(firstCard).toBeVisible({ timeout: 20000 });
-    const href = await firstCard.getAttribute("href");
-    expect(href).toBeTruthy();
-    await gotoAuthenticated(page, href!);
+    // Use a stable seeded protocol directly. Loading the entire catalogue just
+    // to discover this URL made setup unnecessarily slow under CI contention.
+    await gotoAuthenticated(page, "/protocols/optimize-sleep-quality");
     // Wait for protocol title heading to render (server-side fetch complete)
     await page.waitForSelector("h1", { timeout: 15000 });
     await page.waitForLoadState("domcontentloaded");
@@ -59,24 +53,39 @@ test.describe("Daily Checklist", () => {
   test("clicking a tool checkbox toggles completion state", async ({
     page,
   }) => {
-    // Wait for checklist to load
-    const toggleButtons = page.getByRole("button", { name: /mark .+ complete$/i });
-    await toggleButtons.first().waitFor({ timeout: 15000 });
+    const completeButton = page
+      .getByRole("button", { name: /mark .+ complete$/i })
+      .first();
+    await expect(completeButton).toBeEnabled({ timeout: 20000 });
 
-    await toggleButtons.first().click();
-
-    // After clicking, should now show "incomplete" option for that tool
-    const incompleteButtons = page.getByRole("button", {
-      name: /mark .+ incomplete/i,
+    const completeLabel = await completeButton.getAttribute("aria-label");
+    expect(completeLabel).toMatch(/^Mark .+ complete$/i);
+    const incompleteLabel = completeLabel!.replace(/ complete$/i, " incomplete");
+    const incompleteButton = page.getByRole("button", {
+      name: incompleteLabel,
+      exact: true,
     });
-    await incompleteButtons.first().waitFor({ timeout: 10000 });
-    const count = await incompleteButtons.count();
-    expect(count).toBeGreaterThan(0);
+
+    const completionResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes("/api/protocols/completions"),
+      { timeout: 20000 }
+    );
+    await completeButton.click();
+    expect((await completionResponse).ok()).toBe(true);
+    await expect(incompleteButton).toBeVisible({ timeout: 10000 });
 
     // Uncheck it to clean up
-    await incompleteButtons.first().click();
-    // Wait for the "mark complete" button to reappear
-    await toggleButtons.first().waitFor({ timeout: 10000 });
+    const cleanupResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes("/api/protocols/completions"),
+      { timeout: 20000 }
+    );
+    await incompleteButton.click();
+    expect((await cleanupResponse).ok()).toBe(true);
+    await expect(completeButton).toBeVisible({ timeout: 10000 });
   });
 
   test("progress bar reflects completion count", async ({ page }) => {
