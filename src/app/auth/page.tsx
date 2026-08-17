@@ -10,6 +10,9 @@ import { EmailAuthForm } from "@/components/auth/email-auth-form";
 import { PhoneAuthForm } from "@/components/auth/phone-auth-form";
 import { useAuth } from "@/components/auth/use-auth";
 
+const appleAuthEnabled =
+  process.env.NEXT_PUBLIC_APPLE_AUTH_ENABLED === "true";
+
 export default function AuthPage() {
   const auth = useAuth();
 
@@ -36,11 +39,13 @@ export default function AuthPage() {
               onClick={() => auth.handleSocialLogin("google")}
               disabled={auth.socialLoading || auth.loading}
             />
-            <SocialLoginButton
-              provider="apple"
-              onClick={() => auth.handleSocialLogin("apple")}
-              disabled={auth.socialLoading || auth.loading}
-            />
+            {appleAuthEnabled && (
+              <SocialLoginButton
+                provider="apple"
+                onClick={() => auth.handleSocialLogin("apple")}
+                disabled={auth.socialLoading || auth.loading}
+              />
+            )}
           </div>
 
           <div className="relative">
