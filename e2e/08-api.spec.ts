@@ -3,14 +3,14 @@
  *
  * Tests API endpoints for proper auth, response format, and error handling.
  *
- * NOTE: Supabase getUser() behaviour varies by project configuration —
- * some CI environments return 200 even without session cookies because
- * the anon key resolves to a service-level context.  These tests verify
- * that the endpoint responds without crashing and returns a recognisable
- * body shape rather than asserting a hard 401.
+ * Protected endpoints must reject contexts with no Supabase session cookie
+ * before any route-specific validation or external service call runs.
  */
 
 import { test, expect, type APIRequestContext } from "./fixtures";
+
+// These requests intentionally exercise the no-session security boundary.
+test.use({ workerAuth: false });
 
 let anonRequest: APIRequestContext;
 
@@ -25,40 +25,33 @@ test.afterAll(async () => {
 });
 
 test.describe("API: Chat Endpoint", () => {
-  test("POST /api/chat without auth returns 401 or error", async () => {
+  test("POST /api/chat without auth returns 401", async () => {
     const res = await anonRequest.post("/api/chat", {
       headers: { "Content-Type": "application/json" },
       data: { message: "test" },
     });
-    // Expect either 401 (proper rejection) or a non-5xx response
-    expect([200, 401]).toContain(res.status());
-    if (res.status() === 401) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    expect(res.status()).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
   });
 });
 
 test.describe("API: User Protocols Endpoint", () => {
-  test("GET /api/protocols/user without auth returns 401 or error", async () => {
+  test("GET /api/protocols/user without auth returns 401", async () => {
     const res = await anonRequest.get("/api/protocols/user");
-    expect([200, 401]).toContain(res.status());
-    if (res.status() === 401) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    expect(res.status()).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
   });
 
-  test("POST /api/protocols/user without auth returns 401 or error", async () => {
+  test("POST /api/protocols/user without auth returns 401", async () => {
     const res = await anonRequest.post("/api/protocols/user", {
       headers: { "Content-Type": "application/json" },
       data: { protocol_id: "test", action: "activate" },
     });
-    expect([200, 401]).toContain(res.status());
-    if (res.status() === 401) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    expect(res.status()).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBeTruthy();
   });
 });
 
