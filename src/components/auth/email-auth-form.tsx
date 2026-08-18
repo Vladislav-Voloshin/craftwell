@@ -34,20 +34,25 @@ function FloatingInput({
   type,
   label,
   value,
+  autoComplete,
   onChange,
 }: {
   id: string;
   type: string;
   label: string;
   value: string;
+  autoComplete: string;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="relative">
       <input
         id={id}
+        name={id}
         type={type}
         value={value}
+        autoComplete={autoComplete}
+        required
         onChange={(e) => onChange(e.target.value)}
         placeholder=" "
         className="peer w-full rounded-lg border border-input bg-transparent px-3 pt-5 pb-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
@@ -79,10 +84,7 @@ const STRENGTH_TEXT_COLORS = [
 ];
 
 function PasswordStrengthMeter({ password }: { password: string }) {
-  const result = useMemo(
-    () => (password ? zxcvbn(password) : null),
-    [password]
-  );
+  const result = useMemo(() => (password ? zxcvbn(password) : null), [password]);
 
   if (!password) return null;
 
@@ -111,9 +113,7 @@ function PasswordStrengthMeter({ password }: { password: string }) {
           {STRENGTH_LABELS[score]}
         </span>
         {isValid && (
-          <span className="text-xs text-emerald-600 dark:text-emerald-400">
-            ✓ Strong enough
-          </span>
+          <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ Strong enough</span>
         )}
       </div>
 
@@ -125,7 +125,11 @@ function PasswordStrengthMeter({ password }: { password: string }) {
               meetsLength ? "bg-emerald-500" : "bg-muted-foreground/30"
             }`}
           />
-          <span className={meetsLength ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+          <span
+            className={
+              meetsLength ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+            }
+          >
             At least {MIN_LENGTH} characters
           </span>
         </li>
@@ -135,7 +139,11 @@ function PasswordStrengthMeter({ password }: { password: string }) {
               meetsScore ? "bg-emerald-500" : "bg-muted-foreground/30"
             }`}
           />
-          <span className={meetsScore ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+          <span
+            className={
+              meetsScore ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+            }
+          >
             Not too easy to guess
           </span>
         </li>
@@ -169,12 +177,19 @@ export function EmailAuthForm({
     (password.length < MIN_LENGTH || (result?.score ?? 0) < MIN_SCORE);
 
   return (
-    <div className="space-y-4">
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
       <FloatingInput
         id="email"
         type="email"
         label="Email"
         value={email}
+        autoComplete="email"
         onChange={onEmailChange}
       />
       <div className="space-y-2">
@@ -183,19 +198,20 @@ export function EmailAuthForm({
           type="password"
           label="Password"
           value={password}
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
           onChange={onPasswordChange}
         />
         {mode === "signup" && <PasswordStrengthMeter password={password} />}
       </div>
-      <Button
-        className="w-full"
-        onClick={onSubmit}
-        disabled={loading || isSignupDisabled}
-      >
+      <Button type="submit" className="w-full" disabled={loading || isSignupDisabled}>
         {loading
-          ? mode === "signup" ? "Creating account..." : "Signing in..."
-          : mode === "signup" ? "Create Account" : "Sign In"}
+          ? mode === "signup"
+            ? "Creating account..."
+            : "Signing in..."
+          : mode === "signup"
+            ? "Create Account"
+            : "Sign In"}
       </Button>
-    </div>
+    </form>
   );
 }
