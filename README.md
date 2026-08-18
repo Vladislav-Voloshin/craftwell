@@ -67,49 +67,55 @@ npm run dev
 
 Open http://localhost:3000.
 
-### 5. Seed the knowledge base
+### 5. Seed the evidence registry
 
-Trigger the ingestion pipeline to populate protocols and embeddings:
+Trigger provenance-safe metadata ingestion:
 
 ```bash
 curl -X POST http://localhost:3000/api/ingest \
   -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"step":"full-pipeline"}'
+  -d '{"step":"weekly-evidence"}'
 ```
+
+See [Evidence Ingestion](docs/evidence-ingestion.md) for backfills, source
+licences, review requirements, and the content-retention policy.
 
 ## Environment Variables
 
 Create a `.env.local` file with the following:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
-| `ANTHROPIC_API_KEY` | Yes | Claude API key for chat and protocol extraction |
-| `ANTHROPIC_MODEL` | No | Claude model ID (default: `claude-sonnet-4-6`) |
-| `PINECONE_API_KEY` | Yes | Pinecone vector database key |
-| `PINECONE_INDEX` | Yes | Pinecone index name (default: `craftwell`) |
-| `VOYAGE_API_KEY` | Yes | Voyage AI key for text embeddings |
-| `YOUTUBE_API_KEY` | No | YouTube Data API key (for podcast scraping) |
-| `ADMIN_API_KEY` | No | Protects the `/api/ingest` endpoint |
-| `LOG_LEVEL` | No | Pino log level (default: `info` in production, `debug` in dev) |
-| `NEXT_PUBLIC_APP_URL` | No | App URL (default: `http://localhost:3000`) |
-| `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No | Set to `true` only after Apple is enabled in Supabase (default: `false`) |
+| Variable                         | Required        | Description                                                              |
+| -------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`       | Yes             | Supabase project URL                                                     |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Yes             | Supabase anonymous/public key                                            |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Yes             | Supabase service role key (server-side only)                             |
+| `ANTHROPIC_API_KEY`              | Yes             | Claude API key for chat and protocol extraction                          |
+| `ANTHROPIC_MODEL`                | No              | Claude model ID (default: `claude-sonnet-4-6`)                           |
+| `PINECONE_API_KEY`               | Yes             | Pinecone vector database key                                             |
+| `PINECONE_INDEX`                 | Yes             | Pinecone index name (default: `craftwell`)                               |
+| `VOYAGE_API_KEY`                 | Yes             | Voyage AI key for text embeddings                                        |
+| `YOUTUBE_API_KEY`                | No              | Reserved for the reviewed metadata-only YouTube adapter                  |
+| `ADMIN_API_KEY`                  | No              | Protects the `/api/ingest` endpoint                                      |
+| `CRON_SECRET`                    | Production cron | Authenticates Vercel's weekly ingestion request                          |
+| `NCBI_CONTACT_EMAIL`             | Recommended     | Operator contact sent to NCBI E-utilities                                |
+| `NCBI_API_KEY`                   | No              | Raises NCBI E-utilities rate limits                                      |
+| `LOG_LEVEL`                      | No              | Pino log level (default: `info` in production, `debug` in dev)           |
+| `NEXT_PUBLIC_APP_URL`            | No              | App URL (default: `http://localhost:3000`)                               |
+| `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No              | Set to `true` only after Apple is enabled in Supabase (default: `false`) |
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | Run TypeScript type checker |
-| `npm run format` | Format code with Prettier |
-| `npm run format:check` | Check formatting |
-| `npm run test:e2e` | Run Playwright E2E tests |
-| `npm run test:e2e:ui` | Run E2E tests with UI |
+| Command                | Description                 |
+| ---------------------- | --------------------------- |
+| `npm run dev`          | Start dev server            |
+| `npm run build`        | Production build            |
+| `npm run lint`         | Run ESLint                  |
+| `npm run typecheck`    | Run TypeScript type checker |
+| `npm run format`       | Format code with Prettier   |
+| `npm run format:check` | Check formatting            |
+| `npm run test:e2e`     | Run Playwright E2E tests    |
+| `npm run test:e2e:ui`  | Run E2E tests with UI       |
 
 ## Project Structure
 
@@ -124,7 +130,7 @@ src/
 │   └── protocols/    # Protocol browsing and detail pages
 ├── components/       # React components (chat, layout, protocols, profile, ui)
 └── lib/              # Shared utilities
-    ├── ingestion/    # Content scrapers and embedding pipeline
+    ├── ingestion/    # Provenance-safe evidence ingestion and legacy guards
     ├── pinecone/     # Vector search client and embeddings
     └── supabase/     # Supabase client, server, and middleware
 e2e/                  # Playwright E2E test suites

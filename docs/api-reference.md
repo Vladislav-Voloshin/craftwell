@@ -37,10 +37,10 @@ Responses are JSON unless noted. Error responses follow the shape:
 
 Public health check endpoint that reports the connectivity status of all external services.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | No |
-| **Cache** | `no-store` (always fresh) |
+| Field             | Details                   |
+| ----------------- | ------------------------- |
+| **Auth required** | No                        |
+| **Cache**         | `no-store` (always fresh) |
 
 **Response (200 when healthy, 503 when degraded/unhealthy):**
 
@@ -74,13 +74,13 @@ The `/admin/health` page consumes this endpoint and auto-refreshes every 30 seco
 
 Handles OAuth callback after a user authenticates with an external provider (e.g., Google).
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | No (this is part of the auth flow itself) |
-| **Query params** | `code` -- OAuth authorization code |
-| | `error` / `error_description` -- Provider error (optional) |
-| | `next` -- Redirect path after login (default: `/onboarding`) |
-| **Response** | `302 Redirect` to `/protocols` (if onboarding complete), `/onboarding` (new user), or `/auth?error=...` (on failure) |
+| Field             | Details                                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Auth required** | No (this is part of the auth flow itself)                                                                            |
+| **Query params**  | `code` -- OAuth authorization code                                                                                   |
+|                   | `error` / `error_description` -- Provider error (optional)                                                           |
+|                   | `next` -- Redirect path after login (default: `/onboarding`)                                                         |
+| **Response**      | `302 Redirect` to `/protocols` (if onboarding complete), `/onboarding` (new user), or `/auth?error=...` (on failure) |
 
 **Example:**
 
@@ -97,11 +97,11 @@ GET /api/auth/callback?code=abc123
 
 Send a message to the AI health adviser and receive a streamed response.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
-| **Rate limited** | Yes |
-| **Content-Type** | `application/json` |
+| Field             | Details            |
+| ----------------- | ------------------ |
+| **Auth required** | Yes                |
+| **Rate limited**  | Yes                |
+| **Content-Type**  | `application/json` |
 
 **Request body:**
 
@@ -113,11 +113,11 @@ Send a message to the AI health adviser and receive a streamed response.
 }
 ```
 
-| Parameter | Type | Required | Constraints |
-|-----------|------|----------|-------------|
-| `message` | string | Yes | 1--4000 characters |
-| `session_id` | string (UUID) | No | Existing session to continue |
-| `protocol_id` | string (UUID) | No | Protocol to ask about |
+| Parameter     | Type          | Required | Constraints                  |
+| ------------- | ------------- | -------- | ---------------------------- |
+| `message`     | string        | Yes      | 1--4000 characters           |
+| `session_id`  | string (UUID) | No       | Existing session to continue |
+| `protocol_id` | string (UUID) | No       | Protocol to ask about        |
 
 **Response:** Server-Sent Events (SSE) stream with `Content-Type: text/event-stream`.
 
@@ -131,12 +131,14 @@ data: {"type":"done"}
 ```
 
 Event types:
+
 - `meta` -- Session ID and source references (sent first)
 - `text` -- Incremental text chunks of the AI response
 - `error` -- Error message if generation fails
 - `done` -- Stream complete
 
 **Implementation notes:**
+
 - The Claude model is configured via the `ANTHROPIC_MODEL` environment variable (defaults to `claude-sonnet-4-6`).
 - Chat history is loaded with a single joined query (session + messages) to avoid N+1 query patterns.
 - When Pinecone is unreachable, the route degrades gracefully by skipping RAG context rather than returning an error.
@@ -147,16 +149,16 @@ Event types:
 
 List all chat sessions or load messages for a specific session. Supports pagination via `offset` and `limit` query parameters.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **List all sessions (paginated):**
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `offset` | number | No | 0 | Number of sessions to skip |
-| `limit` | number | No | 20 | Maximum sessions to return |
+| Parameter | Type   | Required | Default | Description                |
+| --------- | ------ | -------- | ------- | -------------------------- |
+| `offset`  | number | No       | 0       | Number of sessions to skip |
+| `limit`   | number | No       | 20      | Maximum sessions to return |
 
 ```
 GET /api/chat/sessions
@@ -201,7 +203,7 @@ GET /api/chat/sessions?session_id=<uuid>
       "id": "uuid",
       "role": "assistant",
       "content": "Based on research, here are the top supplements...",
-      "sources": [{"type": "podcast", "title": "...", "chunk_id": "..."}],
+      "sources": [{ "type": "podcast", "title": "...", "chunk_id": "..." }],
       "created_at": "2026-03-28T10:00:05Z"
     }
   ]
@@ -214,9 +216,9 @@ GET /api/chat/sessions?session_id=<uuid>
 
 Rename a chat session.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Request body:**
 
@@ -227,10 +229,10 @@ Rename a chat session.
 }
 ```
 
-| Parameter | Type | Required | Constraints |
-|-----------|------|----------|-------------|
-| `session_id` | string (UUID) | Yes | Must belong to the authenticated user |
-| `title` | string | Yes | 1--200 characters |
+| Parameter    | Type          | Required | Constraints                           |
+| ------------ | ------------- | -------- | ------------------------------------- |
+| `session_id` | string (UUID) | Yes      | Must belong to the authenticated user |
+| `title`      | string        | Yes      | 1--200 characters                     |
 
 **Response:**
 
@@ -247,15 +249,15 @@ Rename a chat session.
 
 Delete a chat session and all its messages.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required |
-|-----------|------|----------|
-| `id` | string (UUID) | Yes |
+| Parameter | Type          | Required |
+| --------- | ------------- | -------- |
+| `id`      | string (UUID) | Yes      |
 
 **Example:**
 
@@ -277,15 +279,15 @@ DELETE /api/chat/sessions?id=<uuid>
 
 Search across all chat messages in the authenticated user's sessions.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required | Constraints |
-|-----------|------|----------|-------------|
-| `q` | string | Yes | Minimum 2 characters |
+| Parameter | Type   | Required | Constraints          |
+| --------- | ------ | -------- | -------------------- |
+| `q`       | string | Yes      | Minimum 2 characters |
 
 **Example:**
 
@@ -320,15 +322,15 @@ Returns up to 20 results, sorted by most recent first.
 
 Combined protocol text search and semantic knowledge base search.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required | Constraints |
-|-----------|------|----------|-------------|
-| `q` | string | Yes | Minimum 2 characters |
+| Parameter | Type   | Required | Constraints          |
+| --------- | ------ | -------- | -------------------- |
+| `q`       | string | Yes      | Minimum 2 characters |
 
 **Example:**
 
@@ -373,9 +375,9 @@ GET /api/search?q=cold+exposure
 
 Get all protocols the authenticated user has added to their stack.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Response:**
 
@@ -407,9 +409,9 @@ Get all protocols the authenticated user has added to their stack.
 
 Activate, deactivate, or remove a protocol from the user's stack.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Request body:**
 
@@ -420,10 +422,10 @@ Activate, deactivate, or remove a protocol from the user's stack.
 }
 ```
 
-| Parameter | Type | Required | Values |
-|-----------|------|----------|--------|
-| `protocol_id` | string (UUID) | Yes | |
-| `action` | string | Yes | `activate`, `deactivate`, `remove` |
+| Parameter     | Type          | Required | Values                             |
+| ------------- | ------------- | -------- | ---------------------------------- |
+| `protocol_id` | string (UUID) | Yes      |                                    |
+| `action`      | string        | Yes      | `activate`, `deactivate`, `remove` |
 
 **Response:**
 
@@ -445,19 +447,19 @@ Activate, deactivate, or remove a protocol from the user's stack.
 
 Get today's completed tools for a specific protocol. Supports pagination via `offset` and `limit` query parameters.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `protocol_id` | string (UUID) | Yes | | |
-| `type` | string | No | | Set to `"streaks"` for streak data instead |
-| `tz_offset` | number | No | | Client timezone offset in minutes (for accurate "today") |
-| `offset` | number | No | 0 | Number of records to skip |
-| `limit` | number | No | 50 | Maximum records to return |
+| Parameter     | Type          | Required | Default | Description                                              |
+| ------------- | ------------- | -------- | ------- | -------------------------------------------------------- |
+| `protocol_id` | string (UUID) | Yes      |         |                                                          |
+| `type`        | string        | No       |         | Set to `"streaks"` for streak data instead               |
+| `tz_offset`   | number        | No       |         | Client timezone offset in minutes (for accurate "today") |
+| `offset`      | number        | No       | 0       | Number of records to skip                                |
+| `limit`       | number        | No       | 50      | Maximum records to return                                |
 
 **Default response (today's completions):**
 
@@ -492,9 +494,9 @@ GET /api/protocols/completions?protocol_id=<uuid>&type=streaks&tz_offset=-300
 
 Toggle a tool completion for today. If the tool is not yet completed today, it marks it complete. If it is already completed, it un-completes it (toggle behavior).
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Request body:**
 
@@ -506,11 +508,11 @@ Toggle a tool completion for today. If the tool is not yet completed today, it m
 }
 ```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `protocol_id` | string (UUID) | Yes | |
-| `tool_id` | string (UUID) | Yes | |
-| `tz_offset` | number | No | Timezone offset in minutes (-720 to 720) |
+| Parameter     | Type          | Required | Description                              |
+| ------------- | ------------- | -------- | ---------------------------------------- |
+| `protocol_id` | string (UUID) | Yes      |                                          |
+| `tool_id`     | string (UUID) | Yes      |                                          |
+| `tz_offset`   | number        | No       | Timezone offset in minutes (-720 to 720) |
 
 **Response (completed):**
 
@@ -536,15 +538,15 @@ Toggle a tool completion for today. If the tool is not yet completed today, it m
 
 Get streak information for all active protocols at once.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required |
-|-----------|------|----------|
-| `tz_offset` | number | No |
+| Parameter   | Type   | Required |
+| ----------- | ------ | -------- |
+| `tz_offset` | number | No       |
 
 **Response:**
 
@@ -578,9 +580,9 @@ Get streak information for all active protocols at once.
 
 Get the list of protocol IDs the user has favorited.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Response:**
 
@@ -596,9 +598,9 @@ Get the list of protocol IDs the user has favorited.
 
 Toggle a protocol favorite. Adds if not favorited, removes if already favorited.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Request body:**
 
@@ -632,15 +634,15 @@ Toggle a protocol favorite. Adds if not favorited, removes if already favorited.
 
 Get the user's note for a protocol.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required |
-|-----------|------|----------|
-| `protocol_id` | string (UUID) | Yes |
+| Parameter     | Type          | Required |
+| ------------- | ------------- | -------- |
+| `protocol_id` | string (UUID) | Yes      |
 
 **Response:**
 
@@ -662,9 +664,9 @@ Returns `{"note": null}` if no note exists.
 
 Create or update a note for a protocol.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Request body:**
 
@@ -675,10 +677,10 @@ Create or update a note for a protocol.
 }
 ```
 
-| Parameter | Type | Required | Constraints |
-|-----------|------|----------|-------------|
-| `protocol_id` | string (UUID) | Yes | |
-| `content` | string | Yes | Max 5000 characters |
+| Parameter     | Type          | Required | Constraints         |
+| ------------- | ------------- | -------- | ------------------- |
+| `protocol_id` | string (UUID) | Yes      |                     |
+| `content`     | string        | Yes      | Max 5000 characters |
 
 **Response:**
 
@@ -698,15 +700,15 @@ Create or update a note for a protocol.
 
 Delete a note for a protocol.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required |
-|-----------|------|----------|
-| `protocol_id` | string (UUID) | Yes |
+| Parameter     | Type          | Required |
+| ------------- | ------------- | -------- |
+| `protocol_id` | string (UUID) | Yes      |
 
 **Response:**
 
@@ -724,16 +726,16 @@ Delete a note for a protocol.
 
 Get weekly adherence data for all active protocols.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Query params:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `week` | string (YYYY-MM-DD) | No | Monday of the target week. Defaults to current week |
-| `tz_offset` | number | No | Timezone offset in minutes |
+| Parameter   | Type                | Required | Description                                         |
+| ----------- | ------------------- | -------- | --------------------------------------------------- |
+| `week`      | string (YYYY-MM-DD) | No       | Monday of the target week. Defaults to current week |
+| `tz_offset` | number              | No       | Timezone offset in minutes                          |
 
 **Example:**
 
@@ -755,9 +757,9 @@ GET /api/protocols/dashboard?week=2026-03-23&tz_offset=-300
       "slug": "morning-sunlight",
       "total_tools": 3,
       "daily": [
-        {"date": "2026-03-23", "completed": 3, "total": 3, "percentage": 100},
-        {"date": "2026-03-24", "completed": 1, "total": 3, "percentage": 33},
-        {"date": "2026-03-25", "completed": 0, "total": 3, "percentage": 0}
+        { "date": "2026-03-23", "completed": 3, "total": 3, "percentage": 100 },
+        { "date": "2026-03-24", "completed": 1, "total": 3, "percentage": 33 },
+        { "date": "2026-03-25", "completed": 0, "total": 3, "percentage": 0 }
       ]
     }
   ],
@@ -773,9 +775,9 @@ GET /api/protocols/dashboard?week=2026-03-23&tz_offset=-300
 
 Export all completion history as a CSV file.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field                     | Details    |
+| ------------------------- | ---------- |
+| **Auth required**         | Yes        |
 | **Response Content-Type** | `text/csv` |
 
 **Response headers:**
@@ -802,9 +804,9 @@ Date,Protocol,Tool,Completed
 
 Get the authenticated user's profile and survey responses.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Response:**
 
@@ -837,9 +839,9 @@ Get the authenticated user's profile and survey responses.
 
 Update profile fields and/or survey responses. Only include the fields you want to change.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Request body:**
 
@@ -862,18 +864,18 @@ Update profile fields and/or survey responses. Only include the fields you want 
 }
 ```
 
-| Field | Type | Constraints |
-|-------|------|-------------|
-| `profile.display_name` | string | Max 100 chars |
-| `profile.first_name` | string | Max 50 chars |
-| `profile.last_name` | string | Max 50 chars |
-| `profile.age` | number | 1--150 |
-| `survey.health_goals` | string[] | |
-| `survey.sleep_quality` | number | 1--10 |
-| `survey.exercise_frequency` | string | |
-| `survey.stress_level` | number | 1--10 |
-| `survey.supplement_experience` | string | |
-| `survey.focus_areas` | string[] | |
+| Field                          | Type     | Constraints   |
+| ------------------------------ | -------- | ------------- |
+| `profile.display_name`         | string   | Max 100 chars |
+| `profile.first_name`           | string   | Max 50 chars  |
+| `profile.last_name`            | string   | Max 50 chars  |
+| `profile.age`                  | number   | 1--150        |
+| `survey.health_goals`          | string[] |               |
+| `survey.sleep_quality`         | number   | 1--10         |
+| `survey.exercise_frequency`    | string   |               |
+| `survey.stress_level`          | number   | 1--10         |
+| `survey.supplement_experience` | string   |               |
+| `survey.focus_areas`           | string[] |               |
 
 **Response:**
 
@@ -891,11 +893,12 @@ Update profile fields and/or survey responses. Only include the fields you want 
 
 Permanently delete the authenticated user's account and all associated data.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 Deletes in order:
+
 1. Auth user (via service-role admin client)
 2. Protocol completions
 3. User protocols
@@ -920,9 +923,9 @@ Deletes in order:
 
 Get the user's achievement progress.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | Yes |
+| Field             | Details |
+| ----------------- | ------- |
+| **Auth required** | Yes     |
 
 **Response:**
 
@@ -935,7 +938,7 @@ Get the user's achievement progress.
       "description": "Add your first protocol",
       "icon": "Sprout",
       "unlocked": true,
-      "progress": {"current": 1, "target": 1}
+      "progress": { "current": 1, "target": 1 }
     },
     {
       "id": "streak-7",
@@ -943,7 +946,7 @@ Get the user's achievement progress.
       "description": "Achieve a 7-day streak",
       "icon": "Zap",
       "unlocked": false,
-      "progress": {"current": 3, "target": 7}
+      "progress": { "current": 3, "target": 7 }
     }
   ],
   "unlocked": 4,
@@ -959,29 +962,33 @@ There are 12 achievements in total. See the [User Help Guide](./user-help-guide.
 
 ### `POST /api/ingest`
 
-Run content ingestion pipeline steps. This is an admin-only endpoint protected by API key, not user authentication.
+Run server-only evidence ingestion operations. This endpoint uses a dedicated
+admin bearer secret rather than a user session.
 
-| Field | Details |
-|-------|---------|
-| **Auth required** | No (uses `Authorization: Bearer <ADMIN_API_KEY>` header) |
+| Field             | Details                                 |
+| ----------------- | --------------------------------------- |
+| **Auth required** | `Authorization: Bearer <ADMIN_API_KEY>` |
 
 **Request body:**
 
 ```json
 {
-  "step": "full-pipeline"
+  "step": "weekly-evidence"
 }
 ```
 
-| Step | Description |
-|------|-------------|
-| `scrape-podcasts` | Scrape podcast episode metadata |
-| `scrape-newsletters` | Scrape newsletter content |
-| `chunk-podcasts` | Chunk podcast transcripts for embedding |
-| `chunk-newsletters` | Chunk newsletter content for embedding |
-| `embed` | Run the full embedding pipeline (generate vectors and upsert to Pinecone) |
-| `extract-protocols` | Extract structured protocols from content using AI |
-| `full-pipeline` | Run all steps in sequence |
+| Step                         | Description                                                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `weekly-evidence`            | Refresh Huberman RSS metadata, broad PubMed evidence, Huberman lab candidates, and the guest research queue |
+| `backfill-huberman-evidence` | Backfill Huberman episode metadata and guests from December 2020                                            |
+| `backfill-huberman-lab`      | Backfill Huberman lab publication candidates from 2000                                                      |
+| `backfill-recent-research`   | Backfill up to 500 broad PubMed records from the previous year                                              |
+| `backfill-guest-research`    | Process the next 10 queued guests and their latest candidate publications                                   |
+| `scrape-podcasts`            | Legacy metadata-only podcast sync                                                                           |
+| `scrape-newsletters`         | Disabled with `410`; raw copying is unsupported                                                             |
+| `chunk-podcasts`             | Disabled with `410` unless content is licensed or user-provided                                             |
+| `chunk-newsletters`          | Disabled with `410` unless content is licensed or user-provided                                             |
+| `full-pipeline`              | Alias for the safe weekly evidence refresh; excludes raw third-party copying                                |
 
 **Example:**
 
@@ -989,27 +996,36 @@ Run content ingestion pipeline steps. This is an admin-only endpoint protected b
 curl -X POST https://craftwell.vercel.app/api/ingest \
   -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"step": "scrape-podcasts"}'
+  -d '{"step": "weekly-evidence"}'
 ```
 
-**Response (single step):**
+**Response:**
 
 ```json
 {
-  "success": true,
-  "totalChunks": 142
+  "ok": true,
+  "status": "succeeded",
+  "startedAt": "2026-08-18T04:15:00.000Z",
+  "completedAt": "2026-08-18T04:15:04.000Z",
+  "sources": [
+    {
+      "sourceKey": "huberman-rss",
+      "status": "succeeded",
+      "discovered": 2,
+      "inserted": 1,
+      "updated": 1,
+      "skipped": 0,
+      "errors": 0
+    }
+  ]
 }
 ```
 
-**Response (full-pipeline):**
+### `GET /api/cron/weekly-ingestion`
 
-```json
-{
-  "success": true,
-  "podcasts": { "...": "..." },
-  "newsletters": { "...": "..." },
-  "chunks": { "podcasts": 142, "newsletters": 87 },
-  "embeddings": { "...": "..." },
-  "protocols": 24
-}
-```
+Vercel invokes this route each Tuesday at 04:15 UTC. It requires
+`Authorization: Bearer <CRON_SECRET>` and returns the same source summary as
+`weekly-evidence`. It is not a public or user-session endpoint.
+
+See [Evidence Ingestion](./evidence-ingestion.md) for retention, licensing,
+deduplication, backfill, and human-review rules.

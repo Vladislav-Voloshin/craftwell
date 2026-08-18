@@ -11,6 +11,8 @@ const PUBLIC_ROUTES = [
   // These endpoints authenticate requests with provider signatures/secrets.
   "/api/stripe/webhook",
   "/api/revenuecat/webhook",
+  "/api/ingest",
+  "/api/cron/weekly-ingestion",
 ];
 
 /** Public route families whose nested pages must also remain accessible. */

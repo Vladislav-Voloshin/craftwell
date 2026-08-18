@@ -6,7 +6,7 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 vi.mock("@/lib/env", () => ({
-  serverEnv: vi.fn(() => ({
+  supabaseAdminEnv: vi.fn(() => ({
     NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
   })),
@@ -17,14 +17,11 @@ describe("getSupabaseAdmin", () => {
     vi.resetModules();
   });
 
-  it("calls createClient with URL and service role key from serverEnv", async () => {
+  it("calls createClient with URL and service role key from supabaseAdminEnv", async () => {
     const { createClient } = await import("@supabase/supabase-js");
     const { getSupabaseAdmin } = await import("./shared");
     getSupabaseAdmin();
-    expect(createClient).toHaveBeenCalledWith(
-      "https://test.supabase.co",
-      "service-role-key",
-    );
+    expect(createClient).toHaveBeenCalledWith("https://test.supabase.co", "service-role-key");
   });
 
   it("returns a supabase client instance", async () => {
@@ -37,15 +34,11 @@ describe("getSupabaseAdmin", () => {
 
 describe("cleanHtml", () => {
   it("strips script tags and their content", () => {
-    expect(cleanHtml('<p>Hello</p><script>alert("xss")</script>')).toBe(
-      "Hello",
-    );
+    expect(cleanHtml('<p>Hello</p><script>alert("xss")</script>')).toBe("Hello");
   });
 
   it("strips style tags and their content", () => {
-    expect(cleanHtml("<style>.red { color: red; }</style><p>Text</p>")).toBe(
-      "Text",
-    );
+    expect(cleanHtml("<style>.red { color: red; }</style><p>Text</p>")).toBe("Text");
   });
 
   it("strips HTML tags", () => {
@@ -54,7 +47,7 @@ describe("cleanHtml", () => {
 
   it("decodes HTML entities", () => {
     expect(cleanHtml("Tom &amp; Jerry &lt;3&gt; &quot;quoted&quot;")).toBe(
-      'Tom & Jerry <3> "quoted"',
+      'Tom & Jerry <3> "quoted"'
     );
   });
 
@@ -106,7 +99,7 @@ describe("extractTopics", () => {
   it("extracts matching topics from title and content", () => {
     const topics = extractTopics(
       "Better Sleep Protocol",
-      "Use melatonin and control light exposure for circadian rhythm.",
+      "Use melatonin and control light exposure for circadian rhythm."
     );
     expect(topics).toContain("sleep");
     expect(topics).toContain("melatonin");
@@ -131,19 +124,13 @@ describe("extractTopics", () => {
   });
 
   it("extracts from content alone", () => {
-    const topics = extractTopics(
-      "",
-      "Creatine is one of the popular supplements.",
-    );
+    const topics = extractTopics("", "Creatine is one of the popular supplements.");
     expect(topics).toContain("creatine");
     expect(topics).toContain("supplements");
   });
 
   it("handles multi-word keywords", () => {
-    const topics = extractTopics(
-      "",
-      "resistance training and ice bath recovery",
-    );
+    const topics = extractTopics("", "resistance training and ice bath recovery");
     expect(topics).toContain("resistance training");
     expect(topics).toContain("ice bath");
   });
