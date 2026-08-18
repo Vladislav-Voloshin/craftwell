@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
     adminKey = ingestionEnv().ADMIN_API_KEY;
   } catch (error) {
     log.error({ err: error }, "Ingestion admin endpoint is not configured");
-    return NextResponse.json({ error: "Ingestion is not configured" }, { status: 503 });
+    // Fail closed without exposing whether this privileged endpoint is configured.
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (!hasValidBearerToken(authHeader, adminKey)) {

@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { runWeeklyEvidenceIngestion, checkIpRateLimit } = vi.hoisted(() => ({
+const { runWeeklyEvidenceIngestion, checkIpRateLimit, ingestionEnv } = vi.hoisted(() => ({
   runWeeklyEvidenceIngestion: vi.fn(),
   checkIpRateLimit: vi.fn(() => null),
+  ingestionEnv: vi.fn(() => ({ ADMIN_API_KEY: "0123456789abcdef" })),
 }));
 
 vi.mock("@/lib/env", () => ({
-  ingestionEnv: () => ({ ADMIN_API_KEY: "0123456789abcdef" }),
+  ingestionEnv,
 }));
 vi.mock("@/lib/api/rate-limit", () => ({ checkIpRateLimit }));
 vi.mock("@/lib/ingestion/evidence/weekly", () => ({
@@ -46,11 +47,25 @@ describe("admin ingestion route", () => {
     runWeeklyEvidenceIngestion.mockReset();
     checkIpRateLimit.mockReset();
     checkIpRateLimit.mockReturnValue(null);
+    ingestionEnv.mockReset();
+    ingestionEnv.mockReturnValue({ ADMIN_API_KEY: "0123456789abcdef" });
   });
 
   it("rejects unauthenticated requests", async () => {
     const response = await POST(request({ step: "weekly-evidence" }, false));
     expect(response.status).toBe(401);
+    expect(runWeeklyEvidenceIngestion).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when admin authentication is not configured", async () => {
+    ingestionEnv.mockImplementation(() => {
+      throw new Error("missing ADMIN_API_KEY");
+    });
+
+    const response = await POST(request({ step: "weekly-evidence" }, false));
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "Unauthorized" });
     expect(runWeeklyEvidenceIngestion).not.toHaveBeenCalled();
   });
 
