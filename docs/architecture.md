@@ -89,67 +89,83 @@ src/
 ### Search
 
 `GET /api/search?q=...` runs two searches in parallel:
+
 1. **Text search**: Supabase `.or()` with `ilike` on protocol title/description
 2. **Semantic search**: Voyage AI embedding -> Pinecone top-8 matches
 
 Results merged and returned to the client.
 
-### Ingestion Pipeline
+### Evidence Ingestion
 
 Admin-only (`POST /api/ingest` with bearer token):
 
-1. **Scrape**: Podcast episodes (RSS), newsletters, YouTube, PubMed, Examine.com
-2. **Chunk**: Split transcripts/articles into ~500-token chunks
-3. **Embed**: Generate Voyage AI embeddings, upsert to Pinecone
-4. **Extract**: Use Claude to extract structured protocols from content
+1. **Discover**: Read official Huberman RSS metadata and date-bounded PubMed indexes.
+2. **Normalize**: Assign stable identities, canonical links, topics, guests, and publication types.
+3. **Provenance**: Preserve each source path while merging duplicate evidence records.
+4. **Review**: Keep guest-author matches and extracted claims pending until verified.
+
+`GET /api/cron/weekly-ingestion` runs this flow every Tuesday. Full transcripts,
+articles, books, captions, and unlicensed databases are excluded. See
+`docs/evidence-ingestion.md`.
 
 ## Database Schema
 
 ### User Domain
+
 - `users` -- Profile data (extends Supabase auth.users)
 - `survey_responses` -- Onboarding health survey (1:1 with users)
 
 ### Chat Domain
+
 - `chat_sessions` -- Conversation containers
 - `chat_messages` -- Individual messages (user/assistant)
 
 ### Protocol Domain
+
 - `protocol_categories` -- 10 health categories (seeded)
 - `protocols` -- Health protocols with effectiveness ranking
 - `protocol_tools` -- Actionable steps within a protocol
 - `user_protocols` -- User's adopted protocols (active/inactive)
 - `protocol_completions` -- Daily tool completion tracking
 
-### Content Domain (RAG)
-- `podcast_episodes` -- Huberman Lab episodes with transcripts
-- `newsletters` -- Newsletter content
-- `content_chunks` -- Chunked content with Pinecone vector IDs
+### Evidence Domain
+
+- `evidence_documents` -- Canonical source metadata and short permitted excerpts
+- `document_sources` -- Per-source identifiers and provenance
+- `people`, `document_people`, `person_sources` -- Guest/author identity graph
+- `ingestion_sources`, `ingestion_runs` -- Rights policy, checkpoints, and observability
+- `evidence_claims`, `protocol_evidence` -- Review-gated claims and protocol links
+
+Legacy `podcast_episodes`, `newsletters`, and `content_chunks` remain for
+compatibility; unsupported raw-content scrapers fail closed.
 
 ### RLS Policy Summary
-| Table | Policy |
-|-------|--------|
-| User data (users, survey, chats) | User can only access own rows |
-| Protocol data (protocols, categories, tools) | Public read, no write via client |
+
+| Table                                        | Policy                               |
+| -------------------------------------------- | ------------------------------------ |
+| User data (users, survey, chats)             | User can only access own rows        |
+| Protocol data (protocols, categories, tools) | Public read, no write via client     |
 | Content data (chunks, episodes, newsletters) | Service-role only (no client access) |
 
 ## API Routes
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/chat` | Yes | Send chat message (SSE stream) |
-| GET | `/api/chat/sessions` | Yes | List sessions or load messages |
-| GET | `/api/search?q=` | Yes | Hybrid text + semantic search |
-| GET | `/api/profile` | Yes | Get user profile + survey |
-| PUT | `/api/profile` | Yes | Update profile/survey |
-| GET | `/api/protocols/user` | Yes | List user's protocols |
-| POST | `/api/protocols/user` | Yes | Activate/deactivate/remove protocol |
-| GET | `/api/protocols/completions` | Yes | Today's completions or streaks |
-| POST | `/api/protocols/completions` | Yes | Toggle tool completion |
-| POST | `/api/ingest` | Admin | Run ingestion pipeline steps |
+| Method | Path                         | Auth  | Description                         |
+| ------ | ---------------------------- | ----- | ----------------------------------- |
+| POST   | `/api/chat`                  | Yes   | Send chat message (SSE stream)      |
+| GET    | `/api/chat/sessions`         | Yes   | List sessions or load messages      |
+| GET    | `/api/search?q=`             | Yes   | Hybrid text + semantic search       |
+| GET    | `/api/profile`               | Yes   | Get user profile + survey           |
+| PUT    | `/api/profile`               | Yes   | Update profile/survey               |
+| GET    | `/api/protocols/user`        | Yes   | List user's protocols               |
+| POST   | `/api/protocols/user`        | Yes   | Activate/deactivate/remove protocol |
+| GET    | `/api/protocols/completions` | Yes   | Today's completions or streaks      |
+| POST   | `/api/protocols/completions` | Yes   | Toggle tool completion              |
+| POST   | `/api/ingest`                | Admin | Run ingestion pipeline steps        |
 
 ## Error Handling
 
 All API routes use a consistent pattern:
+
 1. `requireAuth()` throws `AuthError` if no session -> 401
 2. `parseBody(request, zodSchema)` validates input -> 400 on failure
 3. `handleApiError(err, requestId)` catches everything else -> 500

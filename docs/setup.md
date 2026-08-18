@@ -35,33 +35,40 @@ Create `.env.local` with the following:
 
 ### Required (Core)
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| Variable                        | Description               |
+| ------------------------------- | ------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key  |
 
 ### Required (AI/Backend Routes)
 
-| Variable | Description |
-|----------|-------------|
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only) |
-| `ANTHROPIC_API_KEY` | Anthropic API key for Claude |
-| `PINECONE_API_KEY` | Pinecone vector database key |
-| `PINECONE_INDEX` | Pinecone index name (default: `craftwell`) |
-| `VOYAGE_API_KEY` | Voyage AI key for embeddings |
+| Variable                    | Description                                |
+| --------------------------- | ------------------------------------------ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only)    |
+| `ANTHROPIC_API_KEY`         | Anthropic API key for Claude               |
+| `PINECONE_API_KEY`          | Pinecone vector database key               |
+| `PINECONE_INDEX`            | Pinecone index name (default: `craftwell`) |
+| `VOYAGE_API_KEY`            | Voyage AI key for embeddings               |
 
 ### Optional
 
-| Variable | Description |
-|----------|-------------|
-| `YOUTUBE_API_KEY` | YouTube Data API key (for ingestion) |
-| `ADMIN_API_KEY` | Bearer token for `/api/ingest` admin routes |
-| `NEXT_PUBLIC_APP_URL` | App URL (default: `http://localhost:3000`) |
-| `LOG_LEVEL` | Pino log level (default: `debug` in dev, `info` in prod) |
+| Variable              | Description                                                            |
+| --------------------- | ---------------------------------------------------------------------- |
+| `YOUTUBE_API_KEY`     | Reserved for the reviewed metadata-only YouTube adapter                |
+| `ADMIN_API_KEY`       | Bearer token for `/api/ingest` admin routes                            |
+| `CRON_SECRET`         | Random secret of at least 16 characters for Vercel cron authentication |
+| `NCBI_CONTACT_EMAIL`  | Operator email sent to NCBI E-utilities (recommended)                  |
+| `NCBI_API_KEY`        | Optional NCBI API key for a higher request limit                       |
+| `NEXT_PUBLIC_APP_URL` | App URL (default: `http://localhost:3000`)                             |
+| `LOG_LEVEL`           | Pino log level (default: `debug` in dev, `info` in prod)               |
 
-Environment variables are validated at runtime by Zod schemas in `src/lib/env.ts`. The app exposes two validators:
+Environment variables are validated at runtime by route-scoped Zod schemas in `src/lib/env.ts`:
+
 - `coreEnv()` -- safe to call from any page (Supabase keys only)
-- `serverEnv()` -- call from API routes only (includes all AI secrets)
+- `supabaseAdminEnv()` -- service-role database operations
+- `serverEnv()` -- AI and vector routes
+- `ingestionEnv()` -- manual ingestion and source credentials
+- `cronEnv()` -- scheduled-job authentication
 
 ## Available Scripts
 
@@ -81,28 +88,30 @@ npm run test:e2e:ui  # Playwright with interactive UI
 
 ## Database Setup
 
-The app uses Supabase (PostgreSQL) with Row-Level Security. Run the migration files in order:
+The app uses Supabase (PostgreSQL) with Row-Level Security. Apply every file in
+`supabase/migrations/` in timestamp order. For a linked project, use
+`npx supabase db push --linked`; CI uses the same migration history.
 
-1. `supabase/migrations/001_initial_schema.sql` -- creates all tables, RLS policies, and seeds 10 protocol categories
-2. `supabase/migrations/002_restrict_content_rls.sql` -- removes public read access on content tables (chunks, episodes, newsletters)
+The migrations create the application schema, seed protocol categories, apply
+RLS, and add the server-only evidence registry.
 
-After running migrations, the database includes seed data for protocol categories (Sleep, Focus, Exercise, etc.).
+## Evidence Ingestion
 
-## Ingestion Pipeline
-
-To populate the knowledge base, use the admin ingestion API:
+To populate the provenance registry, use the admin ingestion API:
 
 ```bash
-# Full pipeline (scrape, chunk, embed, extract protocols)
+# Incremental evidence refresh
 curl -X POST http://localhost:3000/api/ingest \
   -H "Authorization: Bearer YOUR_ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"step": "full-pipeline"}'
+  -d '{"step": "weekly-evidence"}'
 
-# Or run individual steps:
-# "scrape-podcasts", "scrape-newsletters", "chunk-podcasts",
-# "chunk-newsletters", "embed", "extract-protocols"
+# Backfills are documented in docs/evidence-ingestion.md.
 ```
+
+Raw transcript, abstract, newsletter, book, YouTube-description, and Examine
+copying is not supported. Claims and protocol links require review before they
+become user-facing evidence.
 
 ## Deployment
 

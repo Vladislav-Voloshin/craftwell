@@ -76,7 +76,10 @@ Yes. Each protocol has a **share button** that lets you share its page via your 
 
 ## 19. How often is content updated?
 
-The knowledge base is updated through an ingestion pipeline that scrapes, chunks, and embeds new research content. Updates happen periodically as new research and content become available. Protocol effectiveness rankings may also be adjusted as new evidence emerges.
+The evidence registry refreshes weekly from official episode metadata and
+PubMed citation indexes. It stores canonical links and provenance rather than
+copying full transcripts, articles, books, or licensed databases. New guest
+author matches and medical claims require review before they affect protocols.
 
 ## 20. How do I contact support?
 
