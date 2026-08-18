@@ -166,6 +166,88 @@ export interface ProtocolCategoryRecord {
   description: string;
 }
 
+export type EvidenceRightsMode = "metadata_only" | "short_excerpt" | "licensed" | "user_provided";
+
+export interface IngestionSource {
+  source_key: string;
+  display_name: string;
+  source_kind: string;
+  base_url: string;
+  rights_mode: EvidenceRightsMode;
+  enabled: boolean;
+  rights_notes: string;
+  last_cursor: string | null;
+  last_success_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EvidenceDocument {
+  id: string;
+  identity_key: string;
+  document_type: string;
+  canonical_url: string;
+  title: string;
+  source_excerpt: string | null;
+  derived_summary: string | null;
+  published_at: string | null;
+  authors: string[];
+  guests: string[];
+  topics: string[];
+  pmid: string | null;
+  doi: string | null;
+  language: string;
+  rights_mode: EvidenceRightsMode;
+  content_fingerprint: string | null;
+  metadata: Record<string, unknown>;
+  first_seen_at: string;
+  last_seen_at: string;
+  updated_at: string;
+}
+
+export interface DocumentSource {
+  document_id: string;
+  source_key: string;
+  external_id: string;
+  canonical_url: string;
+  metadata: Record<string, unknown>;
+  first_seen_at: string;
+  last_seen_at: string;
+}
+
+export interface EvidencePerson {
+  id: string;
+  normalized_name: string;
+  display_name: string;
+  credentials: string[];
+  affiliations: string[];
+  primary_url: string | null;
+  metadata: Record<string, unknown>;
+  last_research_check_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IngestionRun {
+  id: string;
+  source_key: string | null;
+  trigger_type: "cron" | "manual" | "backfill" | "test";
+  status: "running" | "succeeded" | "partial" | "failed";
+  request_id: string | null;
+  cursor_start: string | null;
+  cursor_end: string | null;
+  discovered_count: number;
+  inserted_count: number;
+  updated_count: number;
+  skipped_count: number;
+  error_count: number;
+  error_summary: string | null;
+  metadata: Record<string, unknown>;
+  started_at: string;
+  completed_at: string | null;
+}
+
 // ============================================================
 // Subscriptions
 // ============================================================

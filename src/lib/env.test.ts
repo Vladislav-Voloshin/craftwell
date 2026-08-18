@@ -13,9 +13,7 @@ describe("env validation", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
     const { coreEnv } = await import("./env");
-    expect(() => coreEnv()).toThrow(
-      "Missing or invalid environment variables (core)",
-    );
+    expect(() => coreEnv()).toThrow("Missing or invalid environment variables (core)");
   });
 
   it("coreEnv() throws when URL is not a valid URL", async () => {
@@ -51,20 +49,39 @@ describe("env validation", () => {
     // Delete PINECONE_INDEX so Zod .default() kicks in
     delete process.env.PINECONE_INDEX;
     vi.stubEnv("VOYAGE_API_KEY", "vk");
-    vi.stubEnv("YOUTUBE_API_KEY", "yk");
-    vi.stubEnv("ADMIN_API_KEY", "admk");
     const { serverEnv } = await import("./env");
     const env = serverEnv();
     expect(env.PINECONE_INDEX).toBe("craftwell");
+  });
+
+  it("supabaseAdminEnv() does not require AI credentials", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
+    const { supabaseAdminEnv } = await import("./env");
+    expect(supabaseAdminEnv().SUPABASE_SERVICE_ROLE_KEY).toBe("service-key");
+  });
+
+  it("cronEnv() rejects short secrets", async () => {
+    vi.stubEnv("CRON_SECRET", "too-short");
+    const { cronEnv } = await import("./env");
+    expect(() => cronEnv()).toThrow("cron");
+  });
+
+  it("ingestionEnv() rejects weak admin bearer keys", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
+    vi.stubEnv("ADMIN_API_KEY", "too-short");
+    const { ingestionEnv } = await import("./env");
+    expect(() => ingestionEnv()).toThrow("ingestion");
   });
 
   it("clientEnv() throws when NEXT_PUBLIC_SUPABASE_URL is missing", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
     const { clientEnv } = await import("./env");
-    expect(() => clientEnv()).toThrow(
-      "Missing or invalid environment variables (client)",
-    );
+    expect(() => clientEnv()).toThrow("Missing or invalid environment variables (client)");
   });
 
   it("clientEnv() succeeds with valid variables", async () => {

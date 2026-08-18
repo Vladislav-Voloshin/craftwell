@@ -30,6 +30,8 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/api/waitlist")).toBe(true);
     expect(isPublicRoute("/api/stripe/webhook")).toBe(true);
     expect(isPublicRoute("/api/revenuecat/webhook")).toBe(true);
+    expect(isPublicRoute("/api/ingest")).toBe(true);
+    expect(isPublicRoute("/api/cron/weekly-ingestion")).toBe(true);
   });
 
   it("blocks authenticated-only routes", () => {
