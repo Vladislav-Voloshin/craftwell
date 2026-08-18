@@ -69,9 +69,17 @@ export function PhoneAuthForm({
 
   if (!otpSent) {
     return (
-      <div className="space-y-3">
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSend();
+        }}
+      >
         <Input
+          name="phone"
           type="tel"
+          autoComplete="tel"
           placeholder="+1 (555) 123-4567"
           value={phone}
           onChange={(e) => handlePhoneChange(e.target.value)}
@@ -83,44 +91,45 @@ export function PhoneAuthForm({
             {error}
           </p>
         )}
-        <Button
-          className="w-full"
-          onClick={handleSend}
-          disabled={loading || !phone.trim()}
-        >
+        <Button type="submit" className="w-full" disabled={loading || !phone.trim()}>
           {loading ? "Sending code..." : "Send Verification Code"}
         </Button>
-      </div>
+      </form>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onVerifyOtp();
+      }}
+    >
       <p className="text-sm text-muted-foreground text-center">
         Enter the 6-digit code sent to {phone}
       </p>
       <Input
+        name="one-time-code"
         type="text"
         inputMode="numeric"
+        autoComplete="one-time-code"
         placeholder="000000"
         maxLength={6}
         value={otp}
         onChange={(e) => onOtpChange(e.target.value.replace(/\D/g, ""))}
         className="text-center text-lg tracking-widest"
       />
-      <Button
-        className="w-full"
-        onClick={onVerifyOtp}
-        disabled={loading || otp.length !== 6}
-      >
+      <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
         {loading ? "Verifying..." : "Verify Code"}
       </Button>
       <button
+        type="button"
         onClick={onReset}
         className="text-xs text-muted-foreground hover:text-foreground w-full text-center"
       >
         Use a different number
       </button>
-    </div>
+    </form>
   );
 }

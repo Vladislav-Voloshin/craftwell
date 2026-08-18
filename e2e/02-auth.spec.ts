@@ -24,9 +24,7 @@ test.describe("Auth Page", () => {
 
   test("renders auth page with Craftwell logo", async ({ page }) => {
     await expect(page.getByText("Welcome")).toBeVisible();
-    await expect(
-      page.getByText("Science-based health protocols")
-    ).toBeVisible();
+    await expect(page.getByText("Science-based health protocols")).toBeVisible();
   });
 
   test("shows Google OAuth button", async ({ page }) => {
@@ -52,20 +50,14 @@ test.describe("Auth Page", () => {
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     // Submit button is the last "Sign In" button (segmented control is first)
-    await expect(
-      page.getByRole("button", { name: "Sign In" }).last()
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign In" }).last()).toBeVisible();
   });
 
   test("Sign Up tab shows email and password fields", async ({ page }) => {
     await clickAuthTab(page, "Sign Up");
     await expect(page.getByLabel("Email")).toBeVisible();
-    await expect(
-      page.getByLabel(/Password/)
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Create Account" })
-    ).toBeVisible();
+    await expect(page.getByLabel(/Password/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Account" })).toBeVisible();
   });
 
   test("can switch to Phone auth mode", async ({ page }) => {
@@ -73,9 +65,7 @@ test.describe("Auth Page", () => {
     await page.getByRole("button", { name: "Phone" }).click();
 
     await expect(page.getByPlaceholder(/555/)).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /send verification code/i })
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /send verification code/i })).toBeVisible();
   });
 
   test("can switch between Email and Phone modes", async ({ page }) => {
@@ -96,9 +86,9 @@ test.describe("Auth Page", () => {
     await clickAuthTab(page, "Sign In");
     await page.getByLabel("Email").fill("nonexistent@test.com");
     await page.getByLabel("Password", { exact: true }).fill("wrongpassword");
-    await page.getByRole("button", { name: "Sign In" }).last().click();
+    await page.getByLabel("Password", { exact: true }).press("Enter");
 
-    // Should show an error message (Supabase API call may take time)
+    // Enter submits the semantic form; Supabase should reject the fake account.
     await expect(page.getByText(/invalid|error|credentials/i)).toBeVisible({
       timeout: 15000,
     });
@@ -130,9 +120,7 @@ test.describe("Auth Page", () => {
     await expect(sendBtn).toBeDisabled();
   });
 
-  test("phone OTP send button enabled when phone entered", async ({
-    page,
-  }) => {
+  test("phone OTP send button enabled when phone entered", async ({ page }) => {
     await clickAuthTab(page, "Sign In");
     await page.getByRole("button", { name: "Phone" }).click();
 
@@ -146,25 +134,19 @@ test.describe("Auth Page", () => {
 });
 
 test.describe("Auth Redirects", () => {
-  test("unauthenticated user can access /protocols without redirect", async ({
-    page,
-  }) => {
+  test("unauthenticated user can access /protocols without redirect", async ({ page }) => {
     await page.goto("/protocols");
     await page.waitForLoadState("domcontentloaded");
     await expect(page).toHaveURL(/\/protocols/);
   });
 
-  test("unauthenticated user redirected from /chat to /auth", async ({
-    page,
-  }) => {
+  test("unauthenticated user redirected from /chat to /auth", async ({ page }) => {
     await page.goto("/chat");
     await page.waitForURL("**/auth", { timeout: 10000 });
     await expect(page).toHaveURL(/\/auth/);
   });
 
-  test("unauthenticated user redirected from /profile to /auth", async ({
-    page,
-  }) => {
+  test("unauthenticated user redirected from /profile to /auth", async ({ page }) => {
     await page.goto("/profile");
     await page.waitForURL("**/auth", { timeout: 10000 });
     await expect(page).toHaveURL(/\/auth/);
