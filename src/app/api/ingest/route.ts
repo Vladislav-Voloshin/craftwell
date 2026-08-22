@@ -17,6 +17,7 @@ const ingestionRequestSchema = z
       "chunk-newsletters",
       "weekly-evidence",
       "backfill-huberman-evidence",
+      "backfill-huberman-youtube",
       "backfill-huberman-lab",
       "backfill-guest-research",
       "backfill-recent-research",
@@ -121,6 +122,19 @@ export async function POST(request: NextRequest) {
           requestId,
           sourceKeys: ["huberman-rss"],
           hubermanPublishedSince: new Date("2020-12-01T00:00:00.000Z"),
+        });
+        return NextResponse.json(result, {
+          status: result.status === "failed" ? 500 : 200,
+        });
+      }
+
+      case "backfill-huberman-youtube": {
+        const result = await runWeeklyEvidenceIngestion({
+          trigger: "backfill",
+          requestId,
+          sourceKeys: ["huberman-youtube"],
+          youtubePublishedSince: new Date("2020-12-01T00:00:00.000Z"),
+          youtubeMaxPages: 25,
         });
         return NextResponse.json(result, {
           status: result.status === "failed" ? 500 : 200,

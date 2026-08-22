@@ -5,6 +5,7 @@ import { fetchGuestPubMedEvidence } from "./pubmed-guests";
 import { fetchHubermanLabEvidence } from "./huberman-lab";
 import { fetchHubermanSiteEvidence } from "./huberman-site";
 import { fetchHubermanEpisodePageEvidence } from "./huberman-episode-pages";
+import { fetchHubermanYouTubeEvidence } from "./huberman-youtube";
 import { fetchGuestCrossrefEvidence } from "./crossref-guests";
 import { createEvidenceStore } from "./store";
 import type {
@@ -20,6 +21,7 @@ import type {
 export type WeeklySourceKey =
   | "huberman-rss"
   | "huberman-episode-pages"
+  | "huberman-youtube"
   | "huberman-site"
   | "pubmed-health"
   | "pubmed-guests"
@@ -32,6 +34,9 @@ export interface WeeklyIngestionOptions {
   now?: Date;
   lookbackDays?: number;
   hubermanPublishedSince?: Date;
+  youtubePublishedSince?: Date;
+  youtubeMaxPages?: number;
+  youtubeApiKey?: string | null;
   pubmedFrom?: Date;
   pubmedMaxResults?: number;
   guestCandidateLimit?: number;
@@ -55,15 +60,18 @@ export async function runWeeklyEvidenceIngestion(
   const store = options.store ?? createEvidenceStore();
   const fetchImpl = options.fetchImpl ?? fetch;
   const trigger = options.trigger ?? "cron";
-  const sourceKeys = options.sourceKeys ?? [
-    "huberman-rss",
-    "huberman-episode-pages",
-    "huberman-site",
-    "pubmed-health",
-    "huberman-stanford-lab",
-    "pubmed-guests",
-    "crossref-guests",
-  ];
+  const youtubeApiKey =
+    options.youtubeApiKey === undefined ? process.env.YOUTUBE_API_KEY : options.youtubeApiKey;
+  const sourceKeys = options.sourceKeys ?? defaultSourceKeys(Boolean(youtubeApiKey?.trim()));
+  const sourceCursorStarts: Partial<Record<WeeklySourceKey, Date>> = {
+    "huberman-rss": options.hubermanPublishedSince ?? defaultFrom,
+    "huberman-episode-pages": options.hubermanPublishedSince ?? defaultFrom,
+    "huberman-youtube": options.youtubePublishedSince ?? defaultFrom,
+    "pubmed-health": options.pubmedFrom ?? defaultFrom,
+    "huberman-stanford-lab": options.pubmedFrom ?? defaultFrom,
+    "pubmed-guests": options.pubmedFrom ?? defaultFrom,
+    "crossref-guests": options.pubmedFrom ?? defaultFrom,
+  };
   let hubermanBatchPromise: Promise<EvidenceBatch> | undefined;
   let selectedGuestCandidates: GuestResearchCandidate[] = [];
 
@@ -112,6 +120,14 @@ export async function runWeeklyEvidenceIngestion(
     "huberman-episode-pages": async () =>
       fetchHubermanEpisodePageEvidence({
         episodes: (await getHubermanBatch()).documents,
+        now,
+        fetchImpl,
+      }),
+    "huberman-youtube": () =>
+      fetchHubermanYouTubeEvidence({
+        apiKey: youtubeApiKey ?? "",
+        publishedSince: options.youtubePublishedSince ?? defaultFrom,
+        maxPages: options.youtubeMaxPages,
         now,
         fetchImpl,
       }),
@@ -171,7 +187,7 @@ export async function runWeeklyEvidenceIngestion(
         sourceKey,
         trigger,
         requestId: options.requestId,
-        cursorStart: defaultFrom.toISOString(),
+        cursorStart: (sourceCursorStarts[sourceKey] ?? defaultFrom).toISOString(),
         collect: collectors[sourceKey],
         store,
       })
@@ -211,6 +227,19 @@ export async function runWeeklyEvidenceIngestion(
     completedAt: new Date().toISOString(),
     sources,
   };
+}
+
+function defaultSourceKeys(hasYouTubeApiKey: boolean): WeeklySourceKey[] {
+  return [
+    "huberman-rss",
+    "huberman-episode-pages",
+    ...(hasYouTubeApiKey ? (["huberman-youtube"] as const) : []),
+    "huberman-site",
+    "pubmed-health",
+    "huberman-stanford-lab",
+    "pubmed-guests",
+    "crossref-guests",
+  ];
 }
 
 async function runSource(input: {

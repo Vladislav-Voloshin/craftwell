@@ -977,18 +977,19 @@ admin bearer secret rather than a user session.
 }
 ```
 
-| Step                         | Description                                                                                                          |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `weekly-evidence`            | Refresh Huberman RSS/site/page references, broad PubMed evidence, lab candidates, and PubMed/Crossref guest research |
-| `backfill-huberman-evidence` | Backfill Huberman episode metadata and guests from December 2020                                                     |
-| `backfill-huberman-lab`      | Backfill Huberman lab publication candidates from 2000                                                               |
-| `backfill-recent-research`   | Backfill up to 500 broad PubMed records from the previous year                                                       |
-| `backfill-guest-research`    | Process the next 10 queued guests through PubMed and Crossref candidate publication discovery                        |
-| `scrape-podcasts`            | Compatibility alias for provenance-safe RSS and official episode-page metadata ingestion                             |
-| `scrape-newsletters`         | Disabled with `410`; raw copying is unsupported                                                                      |
-| `chunk-podcasts`             | Disabled with `410` unless content is licensed or user-provided                                                      |
-| `chunk-newsletters`          | Disabled with `410` unless content is licensed or user-provided                                                      |
-| `full-pipeline`              | Alias for the safe weekly evidence refresh; excludes raw third-party copying                                         |
+| Step                         | Description                                                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `weekly-evidence`            | Refresh Huberman RSS/site/page/YouTube metadata, broad PubMed evidence, lab candidates, and guest research |
+| `backfill-huberman-evidence` | Backfill Huberman episode metadata and guests from December 2020                                           |
+| `backfill-huberman-youtube`  | Backfill official YouTube video metadata and transcript/caption availability from December 2020            |
+| `backfill-huberman-lab`      | Backfill Huberman lab publication candidates from 2000                                                     |
+| `backfill-recent-research`   | Backfill up to 500 broad PubMed records from the previous year                                             |
+| `backfill-guest-research`    | Process the next 10 queued guests through PubMed and Crossref candidate publication discovery              |
+| `scrape-podcasts`            | Compatibility alias for provenance-safe RSS and official episode-page metadata ingestion                   |
+| `scrape-newsletters`         | Disabled with `410`; raw copying is unsupported                                                            |
+| `chunk-podcasts`             | Disabled with `410` unless content is licensed or user-provided                                            |
+| `chunk-newsletters`          | Disabled with `410` unless content is licensed or user-provided                                            |
+| `full-pipeline`              | Alias for the safe weekly evidence refresh; excludes raw third-party copying                               |
 
 **Example:**
 
