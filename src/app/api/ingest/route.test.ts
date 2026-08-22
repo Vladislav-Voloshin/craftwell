@@ -132,4 +132,26 @@ describe("admin ingestion route", () => {
       expect.objectContaining({ sourceKeys: ["pubmed-guests", "crossref-guests"] })
     );
   });
+
+  it("supports a bounded official YouTube metadata backfill", async () => {
+    runWeeklyEvidenceIngestion.mockResolvedValue({
+      ok: true,
+      status: "succeeded",
+      startedAt: "2026-08-18T10:00:00.000Z",
+      completedAt: "2026-08-18T10:00:01.000Z",
+      sources: [],
+    });
+
+    const response = await POST(request({ step: "backfill-huberman-youtube" }));
+
+    expect(response.status).toBe(200);
+    expect(runWeeklyEvidenceIngestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: "backfill",
+        sourceKeys: ["huberman-youtube"],
+        youtubePublishedSince: new Date("2020-12-01T00:00:00.000Z"),
+        youtubeMaxPages: 25,
+      })
+    );
+  });
 });

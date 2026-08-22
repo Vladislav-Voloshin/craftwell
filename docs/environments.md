@@ -28,7 +28,7 @@
 | `PINECONE_API_KEY`               | Yes         | Server            | Pinecone vector DB key                                         |
 | `PINECONE_INDEX`                 | Yes         | Server            | Pinecone index name (`huberman-health`)                        |
 | `VOYAGE_API_KEY`                 | Yes         | Server            | Voyage AI embedding key                                        |
-| `YOUTUBE_API_KEY`                | No          | Server            | Reserved for the reviewed metadata-only adapter                |
+| `YOUTUBE_API_KEY`                | No          | Server            | Enables official YouTube metadata and availability indexing    |
 | `ADMIN_API_KEY`                  | Yes         | Server            | Auth for `/api/ingest` admin endpoint                          |
 | `CRON_SECRET`                    | Yes         | Production server | Bearer secret automatically sent by Vercel cron                |
 | `NCBI_CONTACT_EMAIL`             | Recommended | Server            | Operator contact for NCBI E-utilities                          |

@@ -67,6 +67,48 @@ describe("weekly evidence orchestrator", () => {
           { status: 200 }
         );
       }
+      if (url.includes("googleapis.com/youtube/v3/channels")) {
+        return Response.json({
+          items: [
+            {
+              id: "UC2D2CMWXMOVWx7giW1n3LIg",
+              snippet: { title: "Andrew Huberman" },
+              contentDetails: { relatedPlaylists: { uploads: "official-uploads" } },
+            },
+          ],
+        });
+      }
+      if (url.includes("googleapis.com/youtube/v3/playlistItems")) {
+        return Response.json({
+          items: [
+            {
+              id: "playlist-300",
+              contentDetails: {
+                videoId: "video-300",
+                videoPublishedAt: "2026-08-17T08:00:00Z",
+              },
+              snippet: { title: "New Episode" },
+              status: { privacyStatus: "public" },
+            },
+          ],
+        });
+      }
+      if (url.includes("googleapis.com/youtube/v3/videos")) {
+        return Response.json({
+          items: [
+            {
+              id: "video-300",
+              snippet: {
+                channelId: "UC2D2CMWXMOVWx7giW1n3LIg",
+                title: "New Episode",
+                publishedAt: "2026-08-17T08:00:00Z",
+              },
+              contentDetails: { caption: "true" },
+              status: { uploadStatus: "processed", privacyStatus: "public" },
+            },
+          ],
+        });
+      }
       if (url.includes("api.crossref.org")) {
         return Response.json({ message: { items: [], "total-results": 0 } });
       }
@@ -92,6 +134,7 @@ describe("weekly evidence orchestrator", () => {
       now: new Date("2026-08-18T10:00:00.000Z"),
       fetchImpl,
       store,
+      youtubeApiKey: "youtube-test-key",
       crossrefRequestDelayMs: 0,
     });
 
@@ -102,6 +145,7 @@ describe("weekly evidence orchestrator", () => {
       "huberman-rss",
       "huberman-site",
       "huberman-stanford-lab",
+      "huberman-youtube",
       "pubmed-guests",
       "pubmed-health",
     ]);
@@ -111,6 +155,7 @@ describe("weekly evidence orchestrator", () => {
       "huberman-rss:succeeded",
       "huberman-site:succeeded",
       "huberman-stanford-lab:succeeded",
+      "huberman-youtube:succeeded",
       "pubmed-guests:succeeded",
       "pubmed-health:succeeded",
     ]);
@@ -141,6 +186,7 @@ describe("weekly evidence orchestrator", () => {
       now: new Date("2026-08-18T10:00:00.000Z"),
       fetchImpl,
       store,
+      youtubeApiKey: null,
       crossrefRequestDelayMs: 0,
     });
 

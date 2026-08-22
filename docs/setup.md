@@ -54,7 +54,7 @@ Create `.env.local` with the following:
 
 | Variable                 | Description                                                            |
 | ------------------------ | ---------------------------------------------------------------------- |
-| `YOUTUBE_API_KEY`        | Reserved for the reviewed metadata-only YouTube adapter                |
+| `YOUTUBE_API_KEY`        | Enables official YouTube metadata and caption-availability ingestion   |
 | `ADMIN_API_KEY`          | Bearer token for `/api/ingest` admin routes                            |
 | `CRON_SECRET`            | Random secret of at least 16 characters for Vercel cron authentication |
 | `NCBI_CONTACT_EMAIL`     | Operator email sent to NCBI E-utilities (recommended)                  |
