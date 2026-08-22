@@ -87,6 +87,10 @@ describe("Huberman RSS evidence parser", () => {
     "Nutrition & Metabolism",
     "Recovery",
     "Title Card: Sleep",
+    "Announcement: Protocols Live Events",
+    "Book Recommendation: How Emotions Are Made",
+    "An Excellent Review on Training (See Caption On YouTube)",
+    "Zero-Cost Support, YouTube Reviews, Protocols Book, Neural Network Newsletter",
   ])("rejects promotional or topic-only marker %s", (label) => {
     expect(isProtocolTimestampLabel(label)).toBe(false);
   });
