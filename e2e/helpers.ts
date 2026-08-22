@@ -104,10 +104,8 @@ async function fillControlled(
  * /auth (e.g. session cookie race) or the controlled inputs drop their value,
  * we retry before giving up.
  */
-export async function signInAs(
-  page: Page,
-  user: { email: string; password: string }
-) {
+export async function signInAs(page: Page, user: { email: string; password: string }) {
+  let lastError = "unknown error";
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       // page.goto can itself throw net::ERR_ABORTED in CI under load;
@@ -117,11 +115,7 @@ export async function signInAs(
       // Default tab is "Sign In", but click it explicitly for reliability
       await clickAuthTab(page, "Sign In");
       await fillControlled(page, () => page.getByLabel("Email"), user.email);
-      await fillControlled(
-        page,
-        () => page.getByLabel("Password", { exact: true }),
-        user.password
-      );
+      await fillControlled(page, () => page.getByLabel("Password", { exact: true }), user.password);
       // Two "Sign In" buttons exist: segmented control (.bg-muted) and form submit.
       // Use .last() to target the submit button.
       await page.getByRole("button", { name: "Sign In" }).last().click();
@@ -137,11 +131,16 @@ export async function signInAs(
       }
 
       return; // success
-    } catch {
-      if (attempt === 2)
-        throw new Error(`signInAs(${user.email}): failed after 3 attempts`);
-      // Brief pause before retry to let the server recover
-      await page.waitForTimeout(1500);
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      if (attempt === 2) {
+        throw new Error(
+          `signInAs(${user.email}): failed after 3 attempts; last error: ${lastError}`
+        );
+      }
+      // Increase the pause after each failure so a transient auth throttle or
+      // an overloaded CI web server has time to recover before the next try.
+      await page.waitForTimeout(1500 * (attempt + 1));
     }
   }
 }

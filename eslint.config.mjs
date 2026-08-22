@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "scripts/**",
     "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".auth/**",
+    ".playwright-cli/**",
   ]),
   {
     // Prevent accidental console.log/warn/error from landing in production code.
@@ -27,11 +31,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-console": "error",
     },
-    ignores: [
-      "src/app/error.tsx",
-      "src/app/global-error.tsx",
-      "src/app/**/error.tsx",
-    ],
+    ignores: ["src/app/error.tsx", "src/app/global-error.tsx", "src/app/**/error.tsx"],
   },
 ]);
 
