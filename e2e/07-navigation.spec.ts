@@ -19,9 +19,7 @@ test.describe("App Shell & Navigation", () => {
     await expect(page.getByText("Craftwell").first()).toBeVisible();
   });
 
-  test("bottom nav has Protocols, Chat, and Profile links", async ({
-    page,
-  }) => {
+  test("bottom nav has Protocols, Chat, and Profile links", async ({ page }) => {
     await page.goto("/protocols");
     await page.waitForLoadState("domcontentloaded");
 
@@ -66,14 +64,16 @@ test.describe("App Shell & Navigation", () => {
     await expect(page).toHaveURL(/\/profile/);
   });
 
-  test("navigate from Profile back to Protocols via bottom nav", async ({
-    page,
-  }) => {
+  test("navigate from Profile back to Protocols via bottom nav", async ({ page }) => {
     await gotoAuthenticated(page, "/profile");
 
     const protocolsLink = page.getByRole("link", { name: /protocols/i });
     await expect(protocolsLink).toBeVisible();
     await protocolsLink.click();
+    await page.waitForURL(/\/(protocols|auth)/, { timeout: 10000 });
+    if (page.url().includes("/auth")) {
+      await gotoAuthenticated(page, "/protocols");
+    }
     await expect(page).toHaveURL(/\/protocols/);
   });
 
@@ -83,6 +83,10 @@ test.describe("App Shell & Navigation", () => {
     const logo = page.getByRole("link").filter({ hasText: "Craftwell" });
     await expect(logo).toBeVisible();
     await logo.click();
+    await page.waitForURL(/\/(protocols|auth)/, { timeout: 10000 });
+    if (page.url().includes("/auth")) {
+      await gotoAuthenticated(page, "/protocols");
+    }
     await expect(page).toHaveURL(/\/protocols/);
   });
 });

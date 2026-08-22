@@ -12,6 +12,8 @@
 import { test, expect } from "./fixtures";
 import "./helpers";
 
+test.use({ workerAuth: false });
+
 /** Click a segmented-control tab button */
 async function clickAuthTab(page: import("@playwright/test").Page, label: string) {
   await page.locator(".bg-muted.p-1 button", { hasText: label }).click();

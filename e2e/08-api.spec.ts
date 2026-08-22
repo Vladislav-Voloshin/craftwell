@@ -81,7 +81,7 @@ test.describe("API: Ingest Endpoint", () => {
     expect(body.error).toBeTruthy();
   });
 
-  test("POST /api/ingest with valid key but unknown step returns 400", async () => {
+  test("POST /api/ingest with valid key but unsupported step returns 400", async () => {
     const adminKey = process.env.ADMIN_API_KEY;
     test.skip(!adminKey, "Skipping: ADMIN_API_KEY not set");
 
@@ -92,17 +92,15 @@ test.describe("API: Ingest Endpoint", () => {
       },
       data: { step: "nonexistent-step" },
     });
-    // Valid key but unknown step → 400
+    // Schema validation rejects unsupported steps before route dispatch.
     expect(res.status()).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("Unknown step");
+    expect(body.error).toBe("Request body must contain one supported ingestion step");
   });
 });
 
 test.describe("API: Auth Callback", () => {
-  test("GET /auth/callback without code redirects to auth with error", async ({
-    page,
-  }) => {
+  test("GET /auth/callback without code redirects to auth with error", async ({ page }) => {
     await page.goto("/auth/callback");
     await page.waitForURL("**/auth*", { timeout: 10000 });
     expect(page.url()).toContain("/auth");

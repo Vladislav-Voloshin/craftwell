@@ -6,10 +6,10 @@ export const AUTH_DIR = path.join(__dirname, "../.auth");
 /**
  * Path to the stored Playwright auth state for a given parallel worker.
  *
- * Each worker signs in as its OWN test account and gets its OWN storageState
- * file, so Supabase refresh-token rotation in one worker can't invalidate
- * another worker's session (the root cause of the `full`-suite flakiness).
+ * Each CI run and worker gets its OWN storageState file, so retries can reuse
+ * the current session without loading stale state or sharing refresh tokens.
  */
 export function authFileForWorker(parallelIndex: number): string {
-  return path.join(AUTH_DIR, `user-${parallelIndex}.json`);
+  const runId = (process.env.E2E_RUN_ID ?? "local").replace(/[^a-zA-Z0-9_-]/g, "_");
+  return path.join(AUTH_DIR, `user-${runId}-${parallelIndex}.json`);
 }
