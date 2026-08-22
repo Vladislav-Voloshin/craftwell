@@ -7,18 +7,18 @@ does not mirror copyrighted source libraries.
 
 ## Source policy
 
-| Source                         | Status                      | Stored                                                                                                 | Never stored automatically                        |
-| ------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Huberman Lab RSS               | Active                      | Episode metadata, guests, topics, timestamps, up to 500 characters of feed summary and protocol labels | Audio or full transcripts                         |
-| Huberman public episode pages  | Active                      | Transcript availability, cited links, books, associated media and lab/profile URLs                     | Page bodies, audio, captions or transcript text   |
-| Huberman public sitemap/pages  | Active                      | Public URLs, titles, structured dates and up to 500 characters of public meta description              | Page bodies or premium content                    |
-| PubMed                         | Active                      | PMID, DOI, title, authors, journal, publication type, date, canonical URL                              | Abstract or article text                          |
-| Huberman lab via PubMed        | Active                      | Publication candidates from an author and Stanford-affiliation query                                   | Unverified identity claims or article text        |
-| Podcast guests via PubMed      | Active                      | Rotating exact-name author-query candidates                                                            | Automatic assertion that a namesake is the guest  |
-| Podcast guests via Crossref    | Active                      | DOI metadata for publications, proceedings, preprints, chapters and books; ORCID candidates            | Abstracts, full text or automatic identity claims |
-| Huberman YouTube channel index | Registered, adapter pending | Episode-associated YouTube URLs are captured from official episode metadata                            | Channel-wide captions, audio or descriptions      |
-| Examine                        | Disabled                    | Nothing until a suitable data licence is documented                                                    | Scraped member or editorial content               |
-| Open Library catalog           | Disabled, adapter pending   | Books cited by official episode pages or Crossref are already retained as metadata                     | Book text                                         |
+| Source                         | Status                     | Stored                                                                                                 | Never stored automatically                        |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Huberman Lab RSS               | Active                     | Episode metadata, guests, topics, timestamps, up to 500 characters of feed summary and protocol labels | Audio or full transcripts                         |
+| Huberman public episode pages  | Active                     | Transcript availability, cited links, books, associated media and lab/profile URLs                     | Page bodies, audio, captions or transcript text   |
+| Huberman public sitemap/pages  | Active                     | Public URLs, titles, structured dates and up to 500 characters of public meta description              | Page bodies or premium content                    |
+| PubMed                         | Active                     | PMID, DOI, title, authors, journal, publication type, date, canonical URL                              | Abstract or article text                          |
+| Huberman lab via PubMed        | Active                     | Publication candidates from an author and Stanford-affiliation query                                   | Unverified identity claims or article text        |
+| Podcast guests via PubMed      | Active                     | Rotating exact-name author-query candidates                                                            | Automatic assertion that a namesake is the guest  |
+| Podcast guests via Crossref    | Active                     | DOI metadata for publications, proceedings, preprints, chapters and books; ORCID candidates            | Abstracts, full text or automatic identity claims |
+| Huberman YouTube channel index | Active when API key is set | Official video IDs, titles, dates, duration/tags, and caption/transcript availability references       | Descriptions, captions, audio or transcript text  |
+| Examine                        | Disabled                   | Nothing until a suitable data licence is documented                                                    | Scraped member or editorial content               |
+| Open Library catalog           | Disabled, adapter pending  | Books cited by official episode pages or Crossref are already retained as metadata                     | Book text                                         |
 
 Full transcripts, books, abstracts, captions, audio, and licensed databases may
 only enter the system when Craftwell has a licence or the rights-holder/user has
@@ -33,15 +33,18 @@ keys recursively and caps source excerpts at 500 characters.
    candidates; they are never published as medical claims automatically.
 4. Every new official episode page contributes transcript availability and a
    graph of cited studies, books, media, and public lab/profile links.
-5. Sources run independently and are recorded in `ingestion_runs`. Retryable
+5. When `YOUTUBE_API_KEY` is configured, the official channel uploads playlist
+   is checked for new videos. Caption availability is retained as a reference;
+   description, caption, audio, and transcript bodies are discarded.
+6. Sources run independently and are recorded in `ingestion_runs`. Retryable
    HTTP failures use bounded backoff; per-page failures make the run partial.
-6. Canonical records merge by stable identity, PMID, or DOI.
+7. Canonical records merge by stable identity, PMID, or DOI.
    `document_sources` retains every discovery path and
    `evidence_document_relations` retains episode-to-resource provenance.
-7. New episode guests enter a rotating research queue. Five guests are checked
+8. New episode guests enter a rotating research queue. Five guests are checked
    in both PubMed and Crossref each week; all name matches remain `candidate`
    until reviewed.
-8. Successful cursors and guest checkpoints advance only when every selected
+9. Successful cursors and guest checkpoints advance only when every selected
    guest source succeeds. A failed source does not roll back successful sources.
 
 PubMed requests run serially and are paced for NCBI's unkeyed limit. Supplying
@@ -71,13 +74,14 @@ revoked, and only the Supabase service role can operate the ingestion registry.
 
 Use `POST /api/ingest` with `Authorization: Bearer <ADMIN_API_KEY>`.
 
-| Step                         | Purpose                                                                           |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| `weekly-evidence`            | Run the same incremental job as the cron                                          |
-| `backfill-huberman-evidence` | Load historical RSS episode metadata and guest names from December 2020           |
-| `backfill-huberman-lab`      | Load Huberman lab publication candidates from 2000                                |
-| `backfill-recent-research`   | Load up to 500 broad PubMed records from the previous year                        |
-| `backfill-guest-research`    | Process the next 10 queued guests through PubMed and Crossref candidate discovery |
+| Step                         | Purpose                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| `weekly-evidence`            | Run the same incremental job as the cron                                            |
+| `backfill-huberman-evidence` | Load historical RSS episode metadata and guest names from December 2020             |
+| `backfill-huberman-youtube`  | Load official channel video metadata and transcript availability from December 2020 |
+| `backfill-huberman-lab`      | Load Huberman lab publication candidates from 2000                                  |
+| `backfill-recent-research`   | Load up to 500 broad PubMed records from the previous year                          |
+| `backfill-guest-research`    | Process the next 10 queued guests through PubMed and Crossref candidate discovery   |
 
 For the bounded historical page/reference and Crossref backfills, run:
 

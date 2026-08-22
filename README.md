@@ -95,7 +95,7 @@ Create a `.env.local` file with the following:
 | `PINECONE_API_KEY`               | Yes             | Pinecone vector database key                                             |
 | `PINECONE_INDEX`                 | Yes             | Pinecone index name (default: `craftwell`)                               |
 | `VOYAGE_API_KEY`                 | Yes             | Voyage AI key for text embeddings                                        |
-| `YOUTUBE_API_KEY`                | No              | Reserved for the reviewed metadata-only YouTube adapter                  |
+| `YOUTUBE_API_KEY`                | YouTube source  | Enables official channel metadata and caption-availability indexing      |
 | `ADMIN_API_KEY`                  | No              | Protects the `/api/ingest` endpoint                                      |
 | `CRON_SECRET`                    | Production cron | Authenticates Vercel's weekly ingestion request                          |
 | `NCBI_CONTACT_EMAIL`             | Recommended     | Operator contact sent to NCBI E-utilities                                |
