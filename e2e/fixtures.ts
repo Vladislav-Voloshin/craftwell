@@ -11,9 +11,8 @@
  * to a worker-specific storageState file, and reuses it for every test on that
  * worker. No two workers ever share a session, so there is no rotation race.
  *
- * Projects opt in via `use: { workerAuth: true }`. When the flag is off (the
- * `smoke` project, the unauthenticated `02-auth` spec, the `setup` project),
- * the `storageState` override is a no-op and behaviour is unchanged.
+ * Projects opt in via `use: { workerAuth: true }`. Public specs opt out at file
+ * scope, making the `storageState` override a no-op for those tests.
  */
 import { test as base, expect, type APIRequestContext } from "@playwright/test";
 import { existsSync, mkdirSync } from "node:fs";
@@ -39,12 +38,12 @@ type AuthWorkerFixtures = AuthOptions & {
 type NoTestFixtures = {};
 
 export const test = base.extend<NoTestFixtures, AuthWorkerFixtures>({
-  // Default off; the `full` project flips it on in playwright.config.ts.
+  // Default off; projects flip it on and public specs opt out at file scope.
   workerAuth: [false, { scope: "worker", option: true }],
 
   // Worker-scoped: runs at most once per worker. Signs the worker's user in via
   // the real /auth UI (so onboarding is handled the same way as before) and
-  // saves the resulting Supabase session to .auth/user-${parallelIndex}.json.
+  // saves the resulting Supabase session to a run- and worker-specific file.
   workerStorageState: [
     async ({ browser, workerAuth }, use, workerInfo) => {
       if (!workerAuth) {
@@ -58,6 +57,10 @@ export const test = base.extend<NoTestFixtures, AuthWorkerFixtures>({
       const user = testUserForWorker(workerInfo.parallelIndex);
 
       if (!existsSync(AUTH_DIR)) mkdirSync(AUTH_DIR, { recursive: true });
+      if (existsSync(file)) {
+        await use(file);
+        return;
+      }
 
       // A context created from the raw `browser` does NOT inherit the project's
       // baseURL (only the built-in `page` fixture does), so relative goto("/…")

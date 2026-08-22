@@ -6,11 +6,9 @@ export default defineConfig<AuthOptions>({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // Keep CI at two workers: every full-suite worker creates one real Supabase
-  // password session, and three simultaneous sign-ins intermittently exceed
-  // the hosted auth service's per-IP capacity. Two workers remain parallel
-  // without making fixture setup contend with the app server.
-  workers: process.env.CI ? 2 : 4,
+  // Hosted Supabase Auth rate-limits password grants per IP. A single CI worker
+  // creates one reusable session and avoids both login bursts and SSR contention.
+  workers: process.env.CI ? 1 : 4,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "html",
   timeout: 45000,
   use: {
@@ -19,16 +17,18 @@ export default defineConfig<AuthOptions>({
     screenshot: "only-on-failure",
   },
   projects: [
-    // ── Smoke tests (01–07) — don't depend on saved auth ───────────────────
-    // Auth spec (02) deliberately tests unauthenticated flows.
-    // Other smoke specs (01, 03–07) call signInTestUser() themselves.
-    // fullyParallel: false prevents concurrent sign-ins that would exhaust
-    // Supabase auth rate limits across parallel workers.
+    // ── Smoke tests (01–07) ─────────────────────────────────────────────────
+    // Auth, landing, and public onboarding specs opt out at file scope. The
+    // authenticated smoke specs reuse one worker session instead of signing in
+    // independently. Serial execution prevents hosted Auth login bursts.
     {
       name: "smoke",
       testMatch: /0[1-7]-.*\.spec\.ts/,
       fullyParallel: false,
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        workerAuth: true,
+      },
     },
 
     // ── Full suite — each parallel worker authenticates as its OWN account ──
