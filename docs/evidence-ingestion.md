@@ -14,7 +14,7 @@ does not mirror copyrighted source libraries.
 | Huberman public sitemap/pages  | Active                     | Public URLs, titles, structured dates and up to 500 characters of public meta description              | Page bodies or premium content                    |
 | PubMed                         | Active                     | PMID, DOI, title, authors, journal, publication type, date, canonical URL                              | Abstract or article text                          |
 | Huberman lab via PubMed        | Active                     | Publication candidates from an author and Stanford-affiliation query                                   | Unverified identity claims or article text        |
-| Podcast guests via PubMed      | Active                     | Rotating exact-name author-query candidates                                                            | Automatic assertion that a namesake is the guest  |
+| Podcast guests via PubMed      | Active                     | Rotating full-name and surname/initial author-query candidates                                         | Automatic assertion that a namesake is the guest  |
 | Podcast guests via Crossref    | Active                     | DOI metadata for publications, proceedings, preprints, chapters and books; ORCID candidates            | Abstracts, full text or automatic identity claims |
 | Huberman YouTube channel index | Active when API key is set | Official video IDs, titles, dates, duration/tags, and caption/transcript availability references       | Descriptions, captions, audio or transcript text  |
 | Examine                        | Disabled                   | Nothing until a suitable data licence is documented                                                    | Scraped member or editorial content               |
@@ -40,7 +40,9 @@ keys recursively and caps source excerpts at 500 characters.
    description, caption, audio, and transcript bodies are discarded.
 7. Sources run independently and are recorded in `ingestion_runs`. Retryable
    HTTP failures use bounded backoff; per-page failures make the run partial.
-8. Canonical records merge by stable identity, PMID, or DOI.
+8. Canonical records merge by DOI, PMID, or stable source identity. Every
+   alternate source ID is preserved, and source-owned guest/host links are
+   replaced atomically so corrected metadata cannot leave stale people behind.
    `document_sources` retains every discovery path and
    `evidence_document_relations` retains episode-to-resource provenance.
 9. New episode guests enter a rotating research queue. Five guests are checked
@@ -87,19 +89,21 @@ Use `POST /api/ingest` with `Authorization: Bearer <ADMIN_API_KEY>`.
 | `backfill-recent-research`   | Load up to 500 broad PubMed records from the previous year                          |
 | `backfill-guest-research`    | Process the next 10 queued guests through PubMed and Crossref candidate discovery   |
 
-For the bounded historical page/reference and Crossref backfills, run:
+For bounded historical page/reference and bibliographic backfills, run:
 
 ```bash
 npx tsx scripts/backfill-evidence-references.ts --source=all
 npx tsx scripts/backfill-evidence-references.ts --source=books --limit=500
+npx tsx scripts/backfill-evidence-references.ts --source=pubmed --limit=500 --rows=100
 ```
 
-The script supports `--source=episodes|crossref|books`, `--offset`, `--limit`,
-`--batch-size`, `--rows`, `--max-pages`, and `--guest="Guest Name"` for bounded,
-resumable operations. Start Crossref backfills with a small guest-specific
-canary; every name match remains a candidate until a reviewer validates the
-identity against primary profile, affiliation, and ORCID evidence. The script
-stores bibliographic and link metadata only.
+The script supports `--source=episodes|crossref|pubmed|books`, `--offset`,
+`--limit`, `--batch-size`, `--rows`, `--max-pages`, and
+`--guest="Guest Name"` for bounded, resumable operations. Start bibliographic
+backfills with a small guest-specific canary; every name match remains a
+candidate until a reviewer validates the identity against primary profile,
+affiliation, and ORCID evidence. The script stores bibliographic and link
+metadata only.
 
 Example:
 
