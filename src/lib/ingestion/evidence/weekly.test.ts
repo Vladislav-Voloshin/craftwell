@@ -61,6 +61,15 @@ describe("weekly evidence orchestrator", () => {
           { status: 200 }
         );
       }
+      if (url.includes("hubermanlab.com/episode/new-episode")) {
+        return new Response(
+          '<html><div data-w-tab="Transcript"></div><p>Become a Huberman Lab Premium member to access full episode transcripts</p></html>',
+          { status: 200 }
+        );
+      }
+      if (url.includes("api.crossref.org")) {
+        return Response.json({ message: { items: [], "total-results": 0 } });
+      }
       if (url.includes("esearch.fcgi")) {
         return Response.json({ esearchresult: { idlist: ["42"] } });
       }
@@ -83,10 +92,13 @@ describe("weekly evidence orchestrator", () => {
       now: new Date("2026-08-18T10:00:00.000Z"),
       fetchImpl,
       store,
+      crossrefRequestDelayMs: 0,
     });
 
     expect(result.status).toBe("succeeded");
     expect(store.persisted.map((batch) => batch.sourceKey).sort()).toEqual([
+      "crossref-guests",
+      "huberman-episode-pages",
       "huberman-rss",
       "huberman-site",
       "huberman-stanford-lab",
@@ -94,6 +106,8 @@ describe("weekly evidence orchestrator", () => {
       "pubmed-health",
     ]);
     expect(store.finished.sort()).toEqual([
+      "crossref-guests:succeeded",
+      "huberman-episode-pages:succeeded",
       "huberman-rss:succeeded",
       "huberman-site:succeeded",
       "huberman-stanford-lab:succeeded",
@@ -127,6 +141,7 @@ describe("weekly evidence orchestrator", () => {
       now: new Date("2026-08-18T10:00:00.000Z"),
       fetchImpl,
       store,
+      crossrefRequestDelayMs: 0,
     });
 
     expect(result.status).toBe("partial");

@@ -1,8 +1,20 @@
 import { extractTopics } from "../shared";
-import { createSourceExcerpt, parsePersonLabel } from "./policy";
-import type { EvidenceBatch, EvidenceDocumentInput, PersonMentionInput } from "./types";
+import { fetchEvidenceUrl } from "./fetch";
+import {
+  createSourceExcerpt,
+  fingerprintClaim,
+  fingerprintSourceVersion,
+  parsePersonLabel,
+} from "./policy";
+import type {
+  EvidenceBatch,
+  EvidenceClaimInput,
+  EvidenceDocumentInput,
+  PersonMentionInput,
+} from "./types";
 
 export const HUBERMAN_RSS_URL = "https://feeds.megaphone.fm/hubermanlab";
+const MAX_RSS_BYTES = 5_000_000;
 
 interface TimestampMarker {
   timestamp: string;
@@ -13,6 +25,7 @@ interface TimestampMarker {
 interface ParsedEpisode {
   document: EvidenceDocumentInput;
   people: PersonMentionInput[];
+  claims: EvidenceClaimInput[];
 }
 
 export interface HubermanRssOptions {
@@ -26,19 +39,30 @@ export async function fetchHubermanRssEvidence(
 ): Promise<EvidenceBatch> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? new Date();
-  const response = await fetchImpl(HUBERMAN_RSS_URL, {
-    headers: {
-      Accept: "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8",
-      "User-Agent": "CraftwellEvidenceBot/1.0 (+https://craftwell.vercel.app)",
+  const response = await fetchEvidenceUrl(
+    HUBERMAN_RSS_URL,
+    {
+      headers: {
+        Accept: "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8",
+        "User-Agent": "CraftwellEvidenceBot/1.0 (+https://craftwell.vercel.app)",
+      },
     },
-    signal: AbortSignal.timeout(30_000),
-  });
+    fetchImpl,
+    { timeoutMs: 30_000, retries: 2 }
+  );
 
   if (!response.ok) {
     throw new Error(`Huberman RSS request failed with ${response.status}`);
   }
 
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_RSS_BYTES) {
+    throw new Error("Huberman RSS response exceeded the parser size limit");
+  }
   const xml = await response.text();
+  if (xml.length > MAX_RSS_BYTES) {
+    throw new Error("Huberman RSS response exceeded the parser size limit");
+  }
   const parsed = parseHubermanRss(xml, options.publishedSince);
 
   return {
@@ -46,6 +70,7 @@ export async function fetchHubermanRssEvidence(
     cursor: now.toISOString(),
     documents: parsed.map((episode) => episode.document),
     people: parsed.flatMap((episode) => episode.people),
+    claims: parsed.flatMap((episode) => episode.claims),
     metadata: {
       feedUrl: HUBERMAN_RSS_URL,
       publishedSince: options.publishedSince?.toISOString() ?? null,
@@ -135,6 +160,10 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
       durationSeconds,
       timestamps: timestamps.slice(0, 120),
       protocolMarkers,
+      sourceVersion: fingerprintSourceVersion({
+        timestamps: timestamps.slice(0, 120),
+        protocolMarkers,
+      }),
       sourceDisclaimerUrl: "https://www.hubermanlab.com/disclaimer",
       contentPolicy: "no_audio_or_full_transcript_stored",
     },
@@ -162,7 +191,27 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
     });
   }
 
-  return { document, people };
+  const claims = protocolMarkers.map((marker): EvidenceClaimInput => {
+    const claim = {
+      documentIdentityKey: document.identityKey,
+      claimType: "protocol" as const,
+      claimText: marker.label,
+      structuredData: {
+        timestamp: marker.timestamp,
+        seconds: marker.seconds,
+        source: "huberman_rss_timestamp_label",
+        reviewRequired: true,
+      },
+    };
+    return {
+      ...claim,
+      claimHash: fingerprintClaim(claim),
+      evidenceLevel: "unknown",
+      extractionMethod: "deterministic_timestamp_marker",
+    };
+  });
+
+  return { document, people, claims };
 }
 
 function extractGuest(

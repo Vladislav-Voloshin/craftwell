@@ -52,15 +52,16 @@ Create `.env.local` with the following:
 
 ### Optional
 
-| Variable              | Description                                                            |
-| --------------------- | ---------------------------------------------------------------------- |
-| `YOUTUBE_API_KEY`     | Reserved for the reviewed metadata-only YouTube adapter                |
-| `ADMIN_API_KEY`       | Bearer token for `/api/ingest` admin routes                            |
-| `CRON_SECRET`         | Random secret of at least 16 characters for Vercel cron authentication |
-| `NCBI_CONTACT_EMAIL`  | Operator email sent to NCBI E-utilities (recommended)                  |
-| `NCBI_API_KEY`        | Optional NCBI API key for a higher request limit                       |
-| `NEXT_PUBLIC_APP_URL` | App URL (default: `http://localhost:3000`)                             |
-| `LOG_LEVEL`           | Pino log level (default: `debug` in dev, `info` in prod)               |
+| Variable                 | Description                                                            |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `YOUTUBE_API_KEY`        | Reserved for the reviewed metadata-only YouTube adapter                |
+| `ADMIN_API_KEY`          | Bearer token for `/api/ingest` admin routes                            |
+| `CRON_SECRET`            | Random secret of at least 16 characters for Vercel cron authentication |
+| `NCBI_CONTACT_EMAIL`     | Operator email sent to NCBI E-utilities (recommended)                  |
+| `NCBI_API_KEY`           | Optional NCBI API key for a higher request limit                       |
+| `CROSSREF_CONTACT_EMAIL` | Operator email for the Crossref polite pool (recommended)              |
+| `NEXT_PUBLIC_APP_URL`    | App URL (default: `http://localhost:3000`)                             |
+| `LOG_LEVEL`              | Pino log level (default: `debug` in dev, `info` in prod)               |
 
 Environment variables are validated at runtime by route-scoped Zod schemas in `src/lib/env.ts`:
 

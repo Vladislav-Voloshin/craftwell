@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createSourceExcerpt,
+  fingerprintDocument,
+  fingerprintSourceVersion,
   normalizePersonName,
   parsePersonLabel,
   validateEvidenceDocument,
@@ -63,5 +65,28 @@ describe("evidence content policy", () => {
       credentials: ["PhD"],
     });
     expect(normalizePersonName("Professor Andrew D. Huberman, PhD")).toBe("andrew d huberman");
+  });
+
+  it("detects allowed metadata changes without storing raw content", () => {
+    const base = {
+      identityKey: "huberman-episode:episode-1",
+      sourceKey: "huberman-rss",
+      externalId: "episode-1",
+      documentType: "podcast_episode" as const,
+      canonicalUrl: "https://www.hubermanlab.com/episode/example",
+      title: "Example",
+      rightsMode: "metadata_only" as const,
+    };
+    expect(
+      fingerprintDocument({
+        ...base,
+        metadata: { sourceVersion: fingerprintSourceVersion(["Sleep"]) },
+      })
+    ).not.toBe(
+      fingerprintDocument({
+        ...base,
+        metadata: { sourceVersion: fingerprintSourceVersion(["Morning light"]) },
+      })
+    );
   });
 });

@@ -1,11 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "../shared";
-import { validateEvidenceDocument } from "./policy";
+import { assertMetadataDoesNotContainRawContent, validateEvidenceDocument } from "./policy";
 import type {
+  EvidenceClaimInput,
   EvidenceDocumentInput,
+  EvidenceRelationInput,
   EvidenceStore,
   GuestResearchCandidate,
   PersonMentionInput,
+  PersonSourceInput,
 } from "./types";
 
 const WRITE_BATCH_SIZE = 50;
@@ -14,6 +17,12 @@ interface StoredDocument {
   id: string;
   identity_key: string;
   content_fingerprint?: string | null;
+  pmid?: string | null;
+  doi?: string | null;
+}
+
+interface DocumentResolution {
+  byInputKey: Map<string, StoredDocument>;
 }
 
 interface StoredPerson {
@@ -51,30 +60,38 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
       const documents = deduped.documents.map(validateEvidenceDocument);
       const existingDocuments = await loadExistingDocuments(client, documents);
       const changedDocuments = documents.filter((document) => {
-        const existing = existingDocuments.get(document.identityKey);
-        return existing?.content_fingerprint !== document.contentFingerprint;
+        const existing = existingDocuments.byInputKey.get(document.identityKey);
+        return (
+          !existing ||
+          (existing.identity_key === document.identityKey &&
+            existing.content_fingerprint !== document.contentFingerprint)
+        );
       });
-      const changedKeys = new Set(changedDocuments.map((document) => document.identityKey));
-      const storedDocuments = [
-        ...Array.from(existingDocuments.values()).filter(
-          (document) => !changedKeys.has(document.identity_key)
-        ),
-        ...(await upsertDocuments(client, changedDocuments)),
-      ];
-      await upsertDocumentSources(client, storedDocuments, documents);
-      await upsertPeopleAndRelationships(client, storedDocuments, documents, batch.people);
+      const changedStoredDocuments = await upsertDocuments(client, changedDocuments);
+      const documentIds = buildDocumentIdMap(documents, existingDocuments, changedStoredDocuments);
+      await upsertDocumentSources(client, documentIds, documents);
+      await upsertPeopleAndRelationships(client, documentIds, documents, batch.people);
+      const missingPersonSources = await upsertPersonSources(client, batch.personSources ?? []);
+      const missingClaims = await upsertEvidenceClaims(client, documentIds, batch.claims ?? []);
+      const missingRelations = await upsertDocumentRelations(
+        client,
+        documentIds,
+        batch.relations ?? []
+      );
       await syncLegacyPodcastEpisodes(client, documents);
 
       const inserted = changedDocuments.filter(
-        (document) => !existingDocuments.has(documentKey(document))
+        (document) => !existingDocuments.byInputKey.has(documentKey(document))
       ).length;
       const unchanged = documents.length - changedDocuments.length;
+      const errors =
+        (batch.errors?.length ?? 0) + missingPersonSources + missingClaims + missingRelations;
       return {
         discovered: batch.documents.length,
         inserted,
         updated: changedDocuments.length - inserted,
         skipped: deduped.duplicates + unchanged,
-        errors: 0,
+        errors,
       };
     },
 
@@ -84,7 +101,7 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
         .select("display_name, normalized_name, credentials, affiliations, primary_url")
         .contains("metadata", { roles: ["guest"] })
         .order("last_research_check_at", { ascending: true, nullsFirst: true })
-        .limit(Math.min(Math.max(limit, 1), 50));
+        .limit(Math.min(Math.max(limit, 1), 500));
       if (error) {
         throw new Error(`Unable to load guest research queue: ${error.message}`);
       }
@@ -173,25 +190,80 @@ function deduplicateDocuments(documents: EvidenceDocumentInput[]): {
 async function loadExistingDocuments(
   client: SupabaseClient,
   documents: EvidenceDocumentInput[]
-): Promise<Map<string, StoredDocument>> {
-  const existing = new Map<string, StoredDocument>();
-  for (const batch of batches(documents, 100)) {
+): Promise<DocumentResolution> {
+  const byIdentity = new Map<string, StoredDocument>();
+  const byPmid = new Map<string, StoredDocument>();
+  const byDoi = new Map<string, StoredDocument>();
+
+  await loadDocumentsByColumn(
+    client,
+    "identity_key",
+    documents.map((document) => document.identityKey),
+    (document) => byIdentity.set(document.identity_key, document)
+  );
+  await loadDocumentsByColumn(
+    client,
+    "pmid",
+    documents.map((document) => document.pmid).filter((value): value is string => Boolean(value)),
+    (document) => {
+      if (document.pmid) byPmid.set(document.pmid, document);
+    }
+  );
+  await loadDocumentsByColumn(
+    client,
+    "doi",
+    documents.map((document) => document.doi).filter((value): value is string => Boolean(value)),
+    (document) => {
+      if (document.doi) byDoi.set(document.doi.toLowerCase(), document);
+    }
+  );
+
+  const byInputKey = new Map<string, StoredDocument>();
+  for (const document of documents) {
+    const existing =
+      byIdentity.get(document.identityKey) ??
+      (document.pmid ? byPmid.get(document.pmid) : undefined) ??
+      (document.doi ? byDoi.get(document.doi.toLowerCase()) : undefined);
+    if (existing) byInputKey.set(document.identityKey, existing);
+  }
+
+  return { byInputKey };
+}
+
+async function loadDocumentsByColumn(
+  client: SupabaseClient,
+  column: "identity_key" | "pmid" | "doi",
+  values: string[],
+  collect: (document: StoredDocument) => void
+): Promise<void> {
+  for (const batch of batches(unique(values), 100)) {
     const { data, error } = await client
       .from("evidence_documents")
-      .select("id, identity_key, content_fingerprint")
-      .in(
-        "identity_key",
-        batch.map((document) => document.identityKey)
-      );
+      .select("id, identity_key, content_fingerprint, pmid, doi")
+      .in(column, batch);
     if (error) {
-      throw new Error(`Unable to check evidence duplicates: ${error.message}`);
+      throw new Error(`Unable to check evidence duplicates by ${column}: ${error.message}`);
     }
-    for (const row of data ?? []) {
-      const stored = row as StoredDocument;
-      existing.set(stored.identity_key, stored);
-    }
+    for (const row of data ?? []) collect(row as StoredDocument);
   }
-  return existing;
+}
+
+function buildDocumentIdMap(
+  documents: EvidenceDocumentInput[],
+  existing: DocumentResolution,
+  changed: StoredDocument[]
+): Map<string, string> {
+  const changedByIdentity = new Map(
+    changed.map((document) => [document.identity_key, document.id])
+  );
+  const result = new Map<string, string>();
+  for (const document of documents) {
+    const documentId =
+      changedByIdentity.get(document.identityKey) ??
+      existing.byInputKey.get(document.identityKey)?.id;
+    if (documentId) result.set(document.identityKey, documentId);
+  }
+  return result;
 }
 
 async function upsertDocuments(
@@ -234,12 +306,9 @@ async function upsertDocuments(
 
 async function upsertDocumentSources(
   client: SupabaseClient,
-  storedDocuments: StoredDocument[],
+  documentIds: Map<string, string>,
   documents: EvidenceDocumentInput[]
 ): Promise<void> {
-  const documentIds = new Map(
-    storedDocuments.map((document) => [document.identity_key, document.id])
-  );
   const seenAt = new Date().toISOString();
   const rows = documents.flatMap((document) => {
     const documentId = documentIds.get(document.identityKey);
@@ -270,11 +339,11 @@ async function upsertDocumentSources(
 
 async function upsertPeopleAndRelationships(
   client: SupabaseClient,
-  documents: StoredDocument[],
+  documentIdsByIdentity: Map<string, string>,
   sourceDocuments: EvidenceDocumentInput[],
   mentions: PersonMentionInput[]
 ): Promise<void> {
-  if (mentions.length === 0 || documents.length === 0) return;
+  if (mentions.length === 0 || documentIdsByIdentity.size === 0) return;
 
   const mergedMentions = mergePersonMentions(mentions);
   const names = Array.from(mergedMentions.keys());
@@ -298,7 +367,9 @@ async function upsertPeopleAndRelationships(
       ? existing.metadata.roles.filter((role): role is string => typeof role === "string")
       : [];
     const incomingRoles = mentions
-      .filter((mention) => mention.normalizedName === name)
+      .filter(
+        (mention) => mention.normalizedName === name && isTrustedPersonProfileMention(mention)
+      )
       .map((mention) => mention.role);
     return {
       normalized_name: name,
@@ -324,12 +395,9 @@ async function upsertPeopleAndRelationships(
     storedPeople.push(...((data ?? []) as StoredPerson[]));
   }
 
-  const identityDocumentIds = new Map(
-    documents.map((document) => [document.identity_key, document.id])
-  );
   const documentIds = new Map(
     sourceDocuments.flatMap((document) => {
-      const documentId = identityDocumentIds.get(document.identityKey);
+      const documentId = documentIdsByIdentity.get(document.identityKey);
       return documentId ? [[`${document.sourceKey}\u0000${document.externalId}`, documentId]] : [];
     })
   );
@@ -340,6 +408,7 @@ async function upsertPeopleAndRelationships(
     );
     const personId = personIds.get(mention.normalizedName);
     if (!documentId || !personId) return [];
+    assertMetadataDoesNotContainRawContent(mention.metadata ?? {});
     return [
       {
         document_id: documentId,
@@ -348,16 +417,162 @@ async function upsertPeopleAndRelationships(
         match_status: mention.matchStatus,
         confidence: mention.confidence,
         evidence: mention.evidence ?? null,
+        metadata: mention.metadata ?? {},
       },
     ];
   });
 
-  for (const batch of batches(relationshipRows, WRITE_BATCH_SIZE)) {
+  const dedupedRelationships = deduplicateBy(
+    relationshipRows,
+    (row) => `${row.document_id}\u0000${row.person_id}\u0000${row.role}`
+  );
+  for (const batch of batches(dedupedRelationships, WRITE_BATCH_SIZE)) {
     const { error } = await client
       .from("document_people")
       .upsert(batch, { onConflict: "document_id,person_id,role" });
     if (error) throw new Error(`Unable to link people to evidence: ${error.message}`);
   }
+}
+
+async function upsertPersonSources(
+  client: SupabaseClient,
+  sources: PersonSourceInput[]
+): Promise<number> {
+  if (sources.length === 0) return 0;
+  const normalizedNames = unique(sources.map((source) => source.normalizedName));
+  const personIds = new Map<string, string>();
+  for (const batch of batches(normalizedNames, 100)) {
+    const { data, error } = await client
+      .from("people")
+      .select("id, normalized_name")
+      .in("normalized_name", batch);
+    if (error) throw new Error(`Unable to load people for source links: ${error.message}`);
+    for (const person of (data ?? []) as StoredPerson[]) {
+      personIds.set(person.normalized_name, person.id);
+    }
+  }
+
+  let missing = 0;
+  const rows = sources.flatMap((source) => {
+    const personId = personIds.get(source.normalizedName);
+    if (!personId || !isHttpUrl(source.url)) {
+      missing += 1;
+      return [];
+    }
+    assertMetadataDoesNotContainRawContent(source.metadata ?? {});
+    return [
+      {
+        person_id: personId,
+        source_kind: source.sourceKind,
+        url: source.url,
+        title: source.title ?? null,
+        verified: source.verified ?? false,
+        metadata: source.metadata ?? {},
+        last_checked_at: new Date().toISOString(),
+      },
+    ];
+  });
+
+  const dedupedRows = deduplicateBy(rows, (row) => `${row.person_id}\u0000${row.url}`);
+  for (const batch of batches(dedupedRows, WRITE_BATCH_SIZE)) {
+    const { error } = await client
+      .from("person_sources")
+      .upsert(batch, { onConflict: "person_id,url" });
+    if (error) throw new Error(`Unable to store person source links: ${error.message}`);
+  }
+  return missing;
+}
+
+async function upsertEvidenceClaims(
+  client: SupabaseClient,
+  documentIds: Map<string, string>,
+  claims: EvidenceClaimInput[]
+): Promise<number> {
+  if (claims.length === 0) return 0;
+  let missing = 0;
+  const rows = claims.flatMap((claim) => {
+    const documentId = documentIds.get(claim.documentIdentityKey);
+    if (!documentId || !claim.claimHash || !claim.claimText.trim()) {
+      missing += 1;
+      return [];
+    }
+    assertMetadataDoesNotContainRawContent(claim.structuredData ?? {});
+    return [
+      {
+        document_id: documentId,
+        claim_hash: claim.claimHash,
+        claim_text: claim.claimText.trim().slice(0, 1_000),
+        claim_type: claim.claimType,
+        evidence_level: claim.evidenceLevel ?? "unknown",
+        structured_data: claim.structuredData ?? {},
+        extraction_method: claim.extractionMethod ?? "deterministic",
+        extraction_model: claim.extractionModel ?? null,
+      },
+    ];
+  });
+
+  const dedupedRows = deduplicateBy(rows, (row) => `${row.document_id}\u0000${row.claim_hash}`);
+  for (const batch of batches(dedupedRows, WRITE_BATCH_SIZE)) {
+    const { error } = await client
+      .from("evidence_claims")
+      .upsert(batch, { onConflict: "document_id,claim_hash" });
+    if (error) throw new Error(`Unable to store evidence claims: ${error.message}`);
+  }
+  return missing;
+}
+
+async function upsertDocumentRelations(
+  client: SupabaseClient,
+  batchDocumentIds: Map<string, string>,
+  relations: EvidenceRelationInput[]
+): Promise<number> {
+  if (relations.length === 0) return 0;
+  const documentIds = new Map(batchDocumentIds);
+  const requestedKeys = unique(
+    relations.flatMap((relation) => [
+      relation.sourceDocumentIdentityKey,
+      relation.targetDocumentIdentityKey,
+    ])
+  ).filter((identityKey) => !documentIds.has(identityKey));
+  await loadDocumentsByColumn(client, "identity_key", requestedKeys, (document) => {
+    documentIds.set(document.identity_key, document.id);
+  });
+
+  let missing = 0;
+  const seenAt = new Date().toISOString();
+  const rows = relations.flatMap((relation) => {
+    const sourceDocumentId = documentIds.get(relation.sourceDocumentIdentityKey);
+    const targetDocumentId = documentIds.get(relation.targetDocumentIdentityKey);
+    if (!sourceDocumentId || !targetDocumentId) {
+      missing += 1;
+      return [];
+    }
+    if (sourceDocumentId === targetDocumentId) return [];
+    assertMetadataDoesNotContainRawContent(relation.metadata ?? {});
+    return [
+      {
+        source_document_id: sourceDocumentId,
+        target_document_id: targetDocumentId,
+        source_key: relation.sourceKey,
+        relation_type: relation.relationType,
+        metadata: relation.metadata ?? {},
+        last_seen_at: seenAt,
+      },
+    ];
+  });
+
+  const dedupedRows = deduplicateBy(
+    rows,
+    (row) =>
+      `${row.source_document_id}\u0000${row.target_document_id}\u0000${row.source_key}\u0000${row.relation_type}`
+  );
+  for (const batch of batches(dedupedRows, WRITE_BATCH_SIZE)) {
+    const { error } = await client.from("evidence_document_relations").upsert(batch, {
+      onConflict: "source_document_id,target_document_id,source_key,relation_type",
+    });
+    if (error) throw new Error(`Unable to store evidence document relations: ${error.message}`);
+  }
+  return missing;
 }
 
 async function syncLegacyPodcastEpisodes(
@@ -394,24 +609,47 @@ async function syncLegacyPodcastEpisodes(
 function mergePersonMentions(mentions: PersonMentionInput[]): Map<string, PersonMentionInput> {
   const merged = new Map<string, PersonMentionInput>();
   for (const mention of mentions) {
+    const profileMention = isTrustedPersonProfileMention(mention)
+      ? mention
+      : {
+          ...mention,
+          credentials: [],
+          affiliations: [],
+          primaryUrl: undefined,
+          metadata: undefined,
+        };
     const existing = merged.get(mention.normalizedName);
     if (!existing) {
-      merged.set(mention.normalizedName, { ...mention });
+      merged.set(mention.normalizedName, { ...profileMention });
       continue;
     }
+    if (!isTrustedPersonProfileMention(mention)) continue;
     merged.set(mention.normalizedName, {
       ...existing,
-      credentials: unique([...existing.credentials, ...mention.credentials]),
-      affiliations: unique([...existing.affiliations, ...mention.affiliations]),
-      primaryUrl: existing.primaryUrl ?? mention.primaryUrl,
-      metadata: { ...(existing.metadata ?? {}), ...(mention.metadata ?? {}) },
+      credentials: unique([...existing.credentials, ...profileMention.credentials]),
+      affiliations: unique([...existing.affiliations, ...profileMention.affiliations]),
+      primaryUrl: existing.primaryUrl ?? profileMention.primaryUrl,
+      metadata: { ...(existing.metadata ?? {}), ...(profileMention.metadata ?? {}) },
     });
   }
   return merged;
 }
 
+function isTrustedPersonProfileMention(mention: PersonMentionInput): boolean {
+  return mention.matchStatus === "verified" || mention.matchStatus === "extracted";
+}
+
 function documentKey(document: EvidenceDocumentInput): string {
   return document.identityKey;
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 function unique(values: string[]): string[] {
@@ -424,4 +662,8 @@ function batches<T>(items: T[], size: number): T[][] {
     output.push(items.slice(index, index + size));
   }
   return output;
+}
+
+function deduplicateBy<T>(items: T[], key: (item: T) => string): T[] {
+  return Array.from(new Map(items.map((item) => [key(item), item])).values());
 }
