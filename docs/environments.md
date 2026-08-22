@@ -34,6 +34,7 @@
 | `NCBI_CONTACT_EMAIL`             | Recommended | Server            | Operator contact for NCBI E-utilities                          |
 | `NCBI_API_KEY`                   | No          | Server            | Higher NCBI E-utilities request allowance                      |
 | `CROSSREF_CONTACT_EMAIL`         | Recommended | Server            | Operator contact for the Crossref polite pool                  |
+| `OPEN_LIBRARY_CONTACT_EMAIL`     | Recommended | Server            | Identifies low-volume Open Library metadata requests           |
 | `NEXT_PUBLIC_APP_URL`            | No          | Client            | App base URL (default: auto-detected)                          |
 | `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No          | Client            | Shows Apple Sign-In only when its Supabase provider is enabled |
 | `SENTRY_ORG`                     | No          | Build             | Sentry organization slug                                       |
