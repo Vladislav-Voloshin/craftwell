@@ -60,7 +60,7 @@ export async function fetchOpenLibraryBookEvidence(
       })
     )
     .filter((candidate) => candidate.isbns.length > 0);
-  const requestedIsbns = unique(candidates.flatMap((candidate) => candidate.isbns));
+  const requestedIsbns = uniqueSorted(candidates.flatMap((candidate) => candidate.isbns));
   const documents = new Map<string, EvidenceDocumentInput>();
   const errors: string[] = [];
   let requestCount = 0;
@@ -136,7 +136,7 @@ export function extractCandidateIsbns(reference: BookCatalogReference): string[]
     else if (typeof value === "string") values.push(value);
   }
 
-  return unique(
+  return uniqueSorted(
     values.flatMap((value) => {
       if (typeof value !== "string") return [];
       const isbn = normalizeIsbn(value);
@@ -153,7 +153,7 @@ export function normalizeIsbn(value: string): string | null {
 }
 
 export function buildOpenLibrarySearchUrl(isbns: string[]): string {
-  const normalized = unique(
+  const normalized = uniqueSorted(
     isbns.map(normalizeIsbn).filter((isbn): isbn is string => Boolean(isbn))
   ).slice(0, MAX_BATCH_SIZE);
   const url = new URL(OPEN_LIBRARY_SEARCH_URL);
@@ -162,6 +162,7 @@ export function buildOpenLibrarySearchUrl(isbns: string[]): string {
     "fields",
     "key,title,author_name,first_publish_year,isbn,publisher,edition_key,language"
   );
+  url.searchParams.set("sort", "key");
   url.searchParams.set("limit", String(MAX_BATCH_SIZE));
   return url.toString();
 }
@@ -188,13 +189,20 @@ function findMatchingDocument(
   candidateIsbns: string[]
 ): { document: OpenLibrarySearchDocument; isbn: string } | null {
   const candidateSet = new Set(candidateIsbns);
-  for (const document of documents) {
-    for (const value of document.isbn ?? []) {
-      const isbn = normalizeIsbn(value);
-      if (isbn && candidateSet.has(isbn)) return { document, isbn };
-    }
-  }
-  return null;
+  const matches = documents.flatMap((document) => {
+    const workKey = normalizeWorkKey(document.key);
+    if (!workKey) return [];
+    const matchingIsbns = uniqueSorted(
+      (document.isbn ?? []).flatMap((value) => {
+        const isbn = normalizeIsbn(value);
+        return isbn && candidateSet.has(isbn) ? [isbn] : [];
+      })
+    );
+    return matchingIsbns.length > 0 ? [{ document, isbn: matchingIsbns[0], workKey }] : [];
+  });
+  matches.sort((left, right) => compareText(left.workKey, right.workKey));
+  const match = matches[0];
+  return match ? { document: match.document, isbn: match.isbn } : null;
 }
 
 function parseOpenLibraryDocument(
@@ -206,19 +214,27 @@ function parseOpenLibraryDocument(
   if (!workKey) return null;
   const title = cleanHtml(document.title ?? "") || reference.title;
   if (!title) return null;
-  const authors = unique((document.author_name ?? []).map(cleanHtml).filter(Boolean));
-  const isbns = unique(
+  const authors = uniqueSorted((document.author_name ?? []).map(cleanHtml).filter(Boolean)).slice(
+    0,
+    20
+  );
+  const isbns = uniqueSorted(
     (document.isbn ?? []).flatMap((value) => {
       const isbn = normalizeIsbn(value);
       return isbn ? [isbn] : [];
     })
-  );
-  const publishers = unique((document.publisher ?? []).map(cleanHtml).filter(Boolean)).slice(0, 20);
-  const editionKeys = unique((document.edition_key ?? []).filter(isOpenLibraryEditionKey)).slice(
+  ).slice(0, 100);
+  const publishers = uniqueSorted((document.publisher ?? []).map(cleanHtml).filter(Boolean)).slice(
     0,
     20
   );
-  const languages = unique((document.language ?? []).filter(isShortMetadataValue)).slice(0, 20);
+  const editionKeys = uniqueSorted(
+    (document.edition_key ?? []).filter(isOpenLibraryEditionKey)
+  ).slice(0, 20);
+  const languages = uniqueSorted((document.language ?? []).filter(isShortMetadataValue)).slice(
+    0,
+    20
+  );
   const firstPublishYear = validPublishYear(document.first_publish_year);
   const metadata = {
     openLibraryWorkKey: workKey,
@@ -317,6 +333,14 @@ function deduplicateReferences(references: BookCatalogReference[]): BookCatalogR
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return unique(values).sort(compareText);
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function chunks<T>(values: T[], size: number): T[][] {
