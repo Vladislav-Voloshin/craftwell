@@ -13,6 +13,22 @@ import type {
 
 const WRITE_BATCH_SIZE = 50;
 
+// Direct, source-owned metadata must not be replaced by lower-detail links
+// discovered on another page. Equal-priority sources can still refresh a
+// canonical record, while every source always retains its own provenance row.
+const SOURCE_PRIORITIES: Readonly<Record<string, number>> = {
+  "huberman-episode-pages": 20,
+  "crossref-guests": 60,
+  "huberman-site": 80,
+  "huberman-rss": 90,
+  "books-catalog": 90,
+  "huberman-youtube": 100,
+  "pubmed-health": 100,
+  "pubmed-guests": 100,
+  "huberman-stanford-lab": 100,
+  "examine-connect": 110,
+};
+
 interface StoredDocument {
   id: string;
   identity_key: string;
@@ -23,6 +39,7 @@ interface StoredDocument {
 
 interface DocumentResolution {
   byInputKey: Map<string, StoredDocument>;
+  highestSourcePriorityByDocumentId: Map<string, number>;
 }
 
 interface StoredPerson {
@@ -61,11 +78,16 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
       const existingDocuments = await loadExistingDocuments(client, documents);
       const changedDocuments = documents.filter((document) => {
         const existing = existingDocuments.byInputKey.get(document.identityKey);
-        return (
-          !existing ||
-          (existing.identity_key === document.identityKey &&
-            existing.content_fingerprint !== document.contentFingerprint)
-        );
+        if (!existing) return true;
+        if (
+          existing.identity_key !== document.identityKey ||
+          existing.content_fingerprint === document.contentFingerprint
+        ) {
+          return false;
+        }
+        const existingPriority =
+          existingDocuments.highestSourcePriorityByDocumentId.get(existing.id) ?? 0;
+        return sourcePriority(document.sourceKey) >= existingPriority;
       });
       const changedStoredDocuments = await upsertDocuments(client, changedDocuments);
       const documentIds = buildDocumentIdMap(documents, existingDocuments, changedStoredDocuments);
@@ -227,7 +249,37 @@ async function loadExistingDocuments(
     if (existing) byInputKey.set(document.identityKey, existing);
   }
 
-  return { byInputKey };
+  const highestSourcePriorityByDocumentId = await loadHighestDocumentSourcePriorities(
+    client,
+    unique(Array.from(byInputKey.values()).map((document) => document.id))
+  );
+
+  return { byInputKey, highestSourcePriorityByDocumentId };
+}
+
+async function loadHighestDocumentSourcePriorities(
+  client: SupabaseClient,
+  documentIds: string[]
+): Promise<Map<string, number>> {
+  const priorities = new Map<string, number>();
+  for (const batch of batches(documentIds, 100)) {
+    const { data, error } = await client
+      .from("document_sources")
+      .select("document_id, source_key")
+      .in("document_id", batch);
+    if (error) throw new Error(`Unable to load evidence source priority: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ document_id: string; source_key: string }>) {
+      priorities.set(
+        row.document_id,
+        Math.max(priorities.get(row.document_id) ?? 0, sourcePriority(row.source_key))
+      );
+    }
+  }
+  return priorities;
+}
+
+function sourcePriority(sourceKey: string): number {
+  return SOURCE_PRIORITIES[sourceKey] ?? 50;
 }
 
 async function loadDocumentsByColumn(
