@@ -27,9 +27,15 @@ interface StoredPersonRow {
   metadata: Record<string, unknown>;
 }
 
+interface StoredDocumentSourceRow {
+  document_id: string;
+  source_key: string;
+}
+
 function createFakeClient(
   existingDocuments: StoredDocumentRow[] = [],
-  existingPeople: StoredPersonRow[] = []
+  existingPeople: StoredPersonRow[] = [],
+  existingDocumentSources: StoredDocumentSourceRow[] = []
 ) {
   const upserts: RecordedUpsert[] = [];
 
@@ -99,6 +105,14 @@ function createFakeClient(
           error: null,
         };
       }
+      if (this.table === "document_sources") {
+        return {
+          data: existingDocumentSources.filter((source) =>
+            this.filter!.values.includes(source.document_id)
+          ),
+          error: null,
+        };
+      }
       if (this.table !== "evidence_documents") return { data: [], error: null };
       return {
         data: existingDocuments.filter((document) => {
@@ -156,6 +170,92 @@ describe("evidence store persistence", () => {
       document_id: "existing-pubmed",
       source_key: "crossref-guests",
       external_id: "doi:10.1000/example",
+    });
+  });
+
+  it("does not let episode-page metadata overwrite an official YouTube record", async () => {
+    const existingDocuments: StoredDocumentRow[] = [
+      {
+        id: "official-video",
+        identity_key: "youtube:video-1",
+        content_fingerprint: "official-fingerprint",
+        pmid: null,
+        doi: null,
+      },
+    ];
+    const { client, upserts } = createFakeClient(
+      existingDocuments,
+      [],
+      [{ document_id: "official-video", source_key: "huberman-youtube" }]
+    );
+    const store = createEvidenceStore(client);
+
+    const result = await store.persistBatch({
+      sourceKey: "huberman-episode-pages",
+      cursor: "2026-08-22T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "youtube:video-1",
+          sourceKey: "huberman-episode-pages",
+          externalId: "youtube:video-1",
+          documentType: "video",
+          canonicalUrl: "https://www.youtube.com/watch?v=video-1",
+          title: "Video: lower-detail link label",
+          rightsMode: "metadata_only",
+          contentFingerprint: "episode-page-fingerprint",
+        },
+      ],
+      people: [],
+    });
+
+    expect(result).toMatchObject({ inserted: 0, updated: 0, skipped: 1, errors: 0 });
+    expect(upserts.some((call) => call.table === "evidence_documents")).toBe(false);
+    expect(upserts.find((call) => call.table === "document_sources")?.rows[0]).toMatchObject({
+      document_id: "official-video",
+      source_key: "huberman-episode-pages",
+    });
+  });
+
+  it("lets an official YouTube source upgrade an episode-page video record", async () => {
+    const existingDocuments: StoredDocumentRow[] = [
+      {
+        id: "linked-video",
+        identity_key: "youtube:video-1",
+        content_fingerprint: "episode-page-fingerprint",
+        pmid: null,
+        doi: null,
+      },
+    ];
+    const { client, upserts } = createFakeClient(
+      existingDocuments,
+      [],
+      [{ document_id: "linked-video", source_key: "huberman-episode-pages" }]
+    );
+    const store = createEvidenceStore(client);
+
+    const result = await store.persistBatch({
+      sourceKey: "huberman-youtube",
+      cursor: "2026-08-22T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "youtube:video-1",
+          sourceKey: "huberman-youtube",
+          externalId: "video-1",
+          documentType: "video",
+          canonicalUrl: "https://www.youtube.com/watch?v=video-1",
+          title: "Official video title",
+          rightsMode: "metadata_only",
+          contentFingerprint: "official-fingerprint",
+        },
+      ],
+      people: [],
+    });
+
+    expect(result).toMatchObject({ inserted: 0, updated: 1, skipped: 0, errors: 0 });
+    expect(upserts.find((call) => call.table === "evidence_documents")?.rows[0]).toMatchObject({
+      identity_key: "youtube:video-1",
+      title: "Official video title",
+      content_fingerprint: "official-fingerprint",
     });
   });
 
