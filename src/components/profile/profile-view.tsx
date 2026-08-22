@@ -95,7 +95,8 @@ export function ProfileView({
       const res = await fetch("/api/profile", { method: "DELETE" });
       if (res.ok) {
         await supabase.auth.signOut({ scope: "local" });
-        window.location.href = "/auth";
+        router.replace("/auth");
+        router.refresh();
       } else {
         const data = await res.json();
         setDeleteError(data.error || "Failed to delete account");

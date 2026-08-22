@@ -8,6 +8,7 @@ import type {
   EvidenceStore,
   GuestResearchCandidate,
   PersonMentionInput,
+  PersonRole,
   PersonSourceInput,
 } from "./types";
 
@@ -73,9 +74,15 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
     },
 
     async persistBatch(batch) {
-      const deduped = deduplicateDocuments(batch.documents);
-      const documents = deduped.documents.map(validateEvidenceDocument);
-      const existingDocuments = await loadExistingDocuments(client, documents);
+      const sourceDocuments = batch.documents.map(validateEvidenceDocument);
+      const deduped = deduplicateDocuments(sourceDocuments);
+      const documents = deduped.documents;
+      const existingDocuments = await loadExistingDocuments(client, sourceDocuments);
+      mapExistingAliasesToCanonicalDocuments(
+        existingDocuments,
+        sourceDocuments,
+        deduped.canonicalIdentityByInputIdentity
+      );
       const changedDocuments = documents.filter((document) => {
         const existing = existingDocuments.byInputKey.get(document.identityKey);
         if (!existing) return true;
@@ -90,9 +97,20 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
         return sourcePriority(document.sourceKey) >= existingPriority;
       });
       const changedStoredDocuments = await upsertDocuments(client, changedDocuments);
-      const documentIds = buildDocumentIdMap(documents, existingDocuments, changedStoredDocuments);
-      await upsertDocumentSources(client, documentIds, documents);
-      await upsertPeopleAndRelationships(client, documentIds, documents, batch.people);
+      const documentIds = buildDocumentIdMap(
+        sourceDocuments,
+        existingDocuments,
+        changedStoredDocuments,
+        deduped.canonicalIdentityByInputIdentity
+      );
+      await upsertDocumentSources(client, documentIds, sourceDocuments);
+      await upsertPeopleAndRelationships(
+        client,
+        documentIds,
+        sourceDocuments,
+        batch.people,
+        batch.synchronizePersonRoles ?? {}
+      );
       const missingPersonSources = await upsertPersonSources(client, batch.personSources ?? []);
       const missingClaims = await upsertEvidenceClaims(client, documentIds, batch.claims ?? []);
       const missingRelations = await upsertDocumentRelations(
@@ -100,7 +118,7 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
         documentIds,
         batch.relations ?? []
       );
-      await syncLegacyPodcastEpisodes(client, documents);
+      await syncLegacyPodcastEpisodes(client, sourceDocuments);
 
       const inserted = changedDocuments.filter(
         (document) => !existingDocuments.byInputKey.has(documentKey(document))
@@ -120,8 +138,11 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
     async listGuestResearchCandidates(limit) {
       const { data, error } = await client
         .from("people")
-        .select("display_name, normalized_name, credentials, affiliations, primary_url")
-        .contains("metadata", { roles: ["guest"] })
+        .select(
+          "display_name, normalized_name, credentials, affiliations, primary_url, document_people!inner(role,match_status)"
+        )
+        .eq("document_people.role", "guest")
+        .in("document_people.match_status", ["verified", "extracted"])
         .order("last_research_check_at", { ascending: true, nullsFirst: true })
         .limit(Math.min(Math.max(limit, 1), 500));
       if (error) {
@@ -200,13 +221,83 @@ export function createEvidenceStore(client: SupabaseClient = getSupabaseAdmin())
 function deduplicateDocuments(documents: EvidenceDocumentInput[]): {
   documents: EvidenceDocumentInput[];
   duplicates: number;
+  canonicalIdentityByInputIdentity: Map<string, string>;
 } {
-  const byKey = new Map<string, EvidenceDocumentInput>();
-  for (const document of documents) byKey.set(documentKey(document), document);
-  return {
-    documents: Array.from(byKey.values()),
-    duplicates: documents.length - byKey.size,
+  const parents = documents.map((_, index) => index);
+  const ranks = documents.map(() => 0);
+  const indexByKey = new Map<string, number>();
+
+  const find = (index: number): number => {
+    if (parents[index] !== index) parents[index] = find(parents[index]);
+    return parents[index];
   };
+  const union = (left: number, right: number) => {
+    let leftRoot = find(left);
+    let rightRoot = find(right);
+    if (leftRoot === rightRoot) return;
+    if (ranks[leftRoot] < ranks[rightRoot]) [leftRoot, rightRoot] = [rightRoot, leftRoot];
+    parents[rightRoot] = leftRoot;
+    if (ranks[leftRoot] === ranks[rightRoot]) ranks[leftRoot] += 1;
+  };
+
+  documents.forEach((document, index) => {
+    const keys = [
+      `identity:${document.identityKey}`,
+      ...(document.pmid ? [`pmid:${document.pmid}`] : []),
+      ...(document.doi ? [`doi:${document.doi.toLowerCase()}`] : []),
+    ];
+    for (const key of keys) {
+      const prior = indexByKey.get(key);
+      if (prior === undefined) indexByKey.set(key, index);
+      else union(index, prior);
+    }
+  });
+
+  const groups = new Map<number, number[]>();
+  documents.forEach((_, index) => {
+    const root = find(index);
+    groups.set(root, [...(groups.get(root) ?? []), index]);
+  });
+
+  const canonicalIdentityByInputIdentity = new Map<string, string>();
+  const canonicalDocuments = Array.from(groups.values()).map((indices) => {
+    const canonicalIndex = indices.reduce((best, index) =>
+      canonicalDocumentScore(documents[index]) > canonicalDocumentScore(documents[best])
+        ? index
+        : best
+    );
+    const canonical = documents[canonicalIndex];
+    for (const index of indices) {
+      canonicalIdentityByInputIdentity.set(documents[index].identityKey, canonical.identityKey);
+    }
+    return canonical;
+  });
+
+  return {
+    documents: canonicalDocuments,
+    duplicates: documents.length - canonicalDocuments.length,
+    canonicalIdentityByInputIdentity,
+  };
+}
+
+function canonicalDocumentScore(document: EvidenceDocumentInput): number {
+  return (
+    sourcePriority(document.sourceKey) * 100 + (document.pmid ? 20 : 0) + (document.doi ? 10 : 0)
+  );
+}
+
+function mapExistingAliasesToCanonicalDocuments(
+  existing: DocumentResolution,
+  documents: EvidenceDocumentInput[],
+  canonicalIdentityByInputIdentity: Map<string, string>
+): void {
+  for (const document of documents) {
+    const stored = existing.byInputKey.get(document.identityKey);
+    const canonicalIdentity = canonicalIdentityByInputIdentity.get(document.identityKey);
+    if (stored && canonicalIdentity && !existing.byInputKey.has(canonicalIdentity)) {
+      existing.byInputKey.set(canonicalIdentity, stored);
+    }
+  }
 }
 
 async function loadExistingDocuments(
@@ -243,9 +334,9 @@ async function loadExistingDocuments(
   const byInputKey = new Map<string, StoredDocument>();
   for (const document of documents) {
     const existing =
-      byIdentity.get(document.identityKey) ??
+      (document.doi ? byDoi.get(document.doi.toLowerCase()) : undefined) ??
       (document.pmid ? byPmid.get(document.pmid) : undefined) ??
-      (document.doi ? byDoi.get(document.doi.toLowerCase()) : undefined);
+      byIdentity.get(document.identityKey);
     if (existing) byInputKey.set(document.identityKey, existing);
   }
 
@@ -303,17 +394,24 @@ async function loadDocumentsByColumn(
 function buildDocumentIdMap(
   documents: EvidenceDocumentInput[],
   existing: DocumentResolution,
-  changed: StoredDocument[]
+  changed: StoredDocument[],
+  canonicalIdentityByInputIdentity: Map<string, string>
 ): Map<string, string> {
   const changedByIdentity = new Map(
     changed.map((document) => [document.identity_key, document.id])
   );
   const result = new Map<string, string>();
   for (const document of documents) {
+    const canonicalIdentity =
+      canonicalIdentityByInputIdentity.get(document.identityKey) ?? document.identityKey;
     const documentId =
-      changedByIdentity.get(document.identityKey) ??
+      changedByIdentity.get(canonicalIdentity) ??
+      existing.byInputKey.get(canonicalIdentity)?.id ??
       existing.byInputKey.get(document.identityKey)?.id;
-    if (documentId) result.set(document.identityKey, documentId);
+    if (documentId) {
+      result.set(document.identityKey, documentId);
+      result.set(canonicalIdentity, documentId);
+    }
   }
   return result;
 }
@@ -393,9 +491,10 @@ async function upsertPeopleAndRelationships(
   client: SupabaseClient,
   documentIdsByIdentity: Map<string, string>,
   sourceDocuments: EvidenceDocumentInput[],
-  mentions: PersonMentionInput[]
+  mentions: PersonMentionInput[],
+  synchronizeRoles: Partial<Record<PersonRole, string[]>>
 ): Promise<void> {
-  if (mentions.length === 0 || documentIdsByIdentity.size === 0) return;
+  if (documentIdsByIdentity.size === 0) return;
 
   const mergedMentions = mergePersonMentions(mentions);
   const names = Array.from(mergedMentions.keys());
@@ -478,7 +577,40 @@ async function upsertPeopleAndRelationships(
     relationshipRows,
     (row) => `${row.document_id}\u0000${row.person_id}\u0000${row.role}`
   );
-  for (const batch of batches(dedupedRelationships, WRITE_BATCH_SIZE)) {
+  const synchronizedRoleSet = new Set(Object.keys(synchronizeRoles) as PersonRole[]);
+  for (const role of synchronizedRoleSet) {
+    const identityKeys = synchronizeRoles[role] ?? [];
+    const missingIdentityKeys = identityKeys.filter(
+      (identityKey) => !documentIdsByIdentity.has(identityKey)
+    );
+    if (missingIdentityKeys.length > 0) {
+      throw new Error(
+        `Unable to synchronize ${role} evidence people: ${missingIdentityKeys.length} document IDs were unresolved`
+      );
+    }
+    const synchronizedDocumentIds = unique(
+      identityKeys.flatMap((identityKey) => {
+        const documentId = documentIdsByIdentity.get(identityKey);
+        return documentId ? [documentId] : [];
+      })
+    );
+    if (synchronizedDocumentIds.length === 0) continue;
+    const synchronizedDocumentIdSet = new Set(synchronizedDocumentIds);
+    const rows = dedupedRelationships.filter(
+      (row) => row.role === role && synchronizedDocumentIdSet.has(row.document_id)
+    );
+    const { error } = await client.rpc("replace_document_people_for_role", {
+      p_document_ids: synchronizedDocumentIds,
+      p_role: role,
+      p_rows: rows,
+    });
+    if (error) throw new Error(`Unable to synchronize ${role} evidence people: ${error.message}`);
+  }
+
+  const additiveRelationships = dedupedRelationships.filter(
+    (row) => !synchronizedRoleSet.has(row.role)
+  );
+  for (const batch of batches(additiveRelationships, WRITE_BATCH_SIZE)) {
     const { error } = await client
       .from("document_people")
       .upsert(batch, { onConflict: "document_id,person_id,role" });

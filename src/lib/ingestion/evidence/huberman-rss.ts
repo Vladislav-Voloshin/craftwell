@@ -15,6 +15,10 @@ import type {
 
 export const HUBERMAN_RSS_URL = "https://feeds.megaphone.fm/hubermanlab";
 const MAX_RSS_BYTES = 5_000_000;
+const EPISODE_PATH_REPLACEMENTS: Readonly<Record<string, string>> = {
+  "/episode/essentials-optimize-and-control-your-brain-chemistry-to-improve-health-and-performance":
+    "/episode/essentials-control-brain-chemistry-for-focus-motivation-and-well-being",
+};
 const PROTOCOL_MARKER_POLICY = "action_cues_v3";
 const PROMOTIONAL_MARKER_PATTERN =
   /\b(?:sponsors?|sponsored\s+by|advertisements?|ads?|newsletters?|protocols?\s+book|book\s+recommendations?|zero[-\s]*cost\s+support|supporting\s+the\s+hlp|see\s+caption(?:\s+on\s+youtube)?|live\s+events?)\b|^\s*(?:support|subscribe|disclaimer|title\s+card|announcement)\b/i;
@@ -69,12 +73,17 @@ export async function fetchHubermanRssEvidence(
     throw new Error("Huberman RSS response exceeded the parser size limit");
   }
   const parsed = parseHubermanRss(xml, options.publishedSince);
+  const episodeIdentityKeys = parsed.map((episode) => episode.document.identityKey);
 
   return {
     sourceKey: "huberman-rss",
     cursor: now.toISOString(),
     documents: parsed.map((episode) => episode.document),
     people: parsed.flatMap((episode) => episode.people),
+    synchronizePersonRoles: {
+      host: episodeIdentityKeys,
+      guest: episodeIdentityKeys,
+    },
     claims: parsed.flatMap((episode) => episode.claims),
     metadata: {
       feedUrl: HUBERMAN_RSS_URL,
@@ -130,8 +139,8 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
   const externalId =
     feedGuid || (episodeNumber ? `episode-${episodeNumber}` : canonicalUrl.toLowerCase());
 
-  const guest = extractGuest(title, summary);
-  const guests = guest ? [guest.displayName] : [];
+  const extractedGuests = extractGuests(title, summary);
+  const guests = extractedGuests.map((guest) => guest.displayName);
   const topics = extractTopics(
     title,
     `${summary} ${timestamps.map((marker) => marker.label).join(" ")}`
@@ -186,7 +195,7 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
       primaryUrl: "https://www.hubermanlab.com/about",
     });
   }
-  if (guest) {
+  for (const guest of extractedGuests) {
     people.push({
       ...guest,
       documentSourceKey: document.sourceKey,
@@ -217,39 +226,76 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
   return { document, people, claims };
 }
 
-function extractGuest(
+function extractGuests(
   title: string,
   summary: string
-): Omit<PersonMentionInput, "documentSourceKey" | "documentExternalId"> | null {
-  const pipeCandidate = title.match(/\|\s*([^|]+)$/)?.[1];
-  if (pipeCandidate) {
-    const parsed = parsePersonLabel(pipeCandidate, "guest", {
-      confidence: 0.95,
-      evidence: "Guest named after the final separator in the episode title",
-    });
-    if (parsed) return parsed;
+): Array<Omit<PersonMentionInput, "documentSourceKey" | "documentExternalId">> {
+  const guests = new Map<
+    string,
+    Omit<PersonMentionInput, "documentSourceKey" | "documentExternalId">
+  >();
+  const addCandidate = (value: string | undefined, confidence: number, evidence: string) => {
+    if (!value) return;
+    for (const candidate of splitGuestCandidates(value)) {
+      const parsed = parsePersonLabel(candidate, "guest", { confidence, evidence });
+      if (!parsed || !isLikelyGuestName(parsed.displayName)) continue;
+      const current = guests.get(parsed.normalizedName);
+      if (!current || parsed.confidence > current.confidence) {
+        guests.set(parsed.normalizedName, parsed);
+      }
+    }
+  };
+
+  const guestSeriesCandidate = title.match(/\bguest\s+series\s*\|\s*([^:|]+)(?=\s*:)/i)?.[1];
+  const journalClubCandidate = title.match(/\bjournal\s+club\s+with\s+([^|]+?)(?=\s*\||$)/i)?.[1];
+
+  addCandidate(guestSeriesCandidate, 0.98, "Guest named in the official Guest Series title");
+  addCandidate(journalClubCandidate, 0.98, "Guest named in the official Journal Club title");
+
+  if (!guestSeriesCandidate && !journalClubCandidate) {
+    addCandidate(
+      title.match(/\|\s*([^|]+)$/)?.[1],
+      0.95,
+      "Guest named after the final separator in the episode title"
+    );
   }
 
-  const withCandidate = title.match(
-    /\bwith\s+((?:Dr\.?\s+)?[A-Z][\p{L}'’.-]+(?:\s+[A-Z][\p{L}'’.-]+){1,3})/u
-  )?.[1];
-  if (withCandidate) {
-    const parsed = parsePersonLabel(withCandidate, "guest", {
-      confidence: 0.85,
-      evidence: "Guest named in the episode title",
-    });
-    if (parsed) return parsed;
+  if (guests.size === 0) {
+    const summaryCandidates = [
+      summary.match(
+        /\bmy guest is\s+((?:Dr\.?\s+)?[A-Z][\p{L}'’.-]+(?:\s+[A-Z][\p{L}'’.-]+){1,3})(?=,|\s+who\b|\s+is\b)/u
+      )?.[1],
+      summary.match(
+        /\bmy guest is[^.]{0,100},\s*((?:Dr\.)\s+[A-Z][\p{L}'’.-]+(?:\s+[A-Z][\p{L}'’.-]+){1,3})(?=,|\s+who\b|\s+is\b)/u
+      )?.[1],
+      summary.match(
+        /\bI (?:host|speak with|sit down with)\s+((?:Dr\.?\s+)?[A-Z][\p{L}'’.-]+(?:\s+[A-Z][\p{L}'’.-]+){1,3})(?=,|\s+who\b|\s+is\b)/u
+      )?.[1],
+      summary.match(
+        /^((?:Dr\.?\s+)?[A-Z][\p{L}'’.-]+(?:\s+[A-Z][\p{L}'’.-]+){1,3})(?=,\s*(?:Ph\.?D\.?|M\.?D\.?|MD|DO|Psy\.?D\.?|MPH)\b|\s+is\b)/u
+      )?.[1],
+    ];
+    for (const candidate of summaryCandidates) {
+      addCandidate(candidate, 0.82, "Guest extracted from the opening episode summary");
+    }
   }
 
-  const introCandidate = summary.match(
-    /^(?:in this [^.]+,\s*)?(?:my guest is\s+)?((?:Dr\.?\s+)?[A-Z][\p{L}'’.-]+(?:\s+[A-Z][\p{L}'’.-]+){1,3}(?:,\s*(?:Ph\.?D\.?|M\.?D\.?|MD|DO|Psy\.?D\.?|MPH))?)(?:,|\s+is\b)/u
-  )?.[1];
-  return introCandidate
-    ? parsePersonLabel(introCandidate, "guest", {
-        confidence: 0.72,
-        evidence: "Guest extracted from the opening episode summary",
-      })
-    : null;
+  return Array.from(guests.values());
+}
+
+function splitGuestCandidates(value: string): string[] {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  const parts = cleaned.split(/\s+(?:&|and)\s+(?=(?:Dr\.?\s+)?[A-Z])/u);
+  return parts.length <= 3 ? parts : [cleaned];
+}
+
+function isLikelyGuestName(value: string): boolean {
+  const normalized = value.toLowerCase();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 5 || /[:|]/.test(value)) return false;
+  return !/\b(?:cancer|daily|effects?|fitness|health|longevity|mental|metabolism|metformin|nutrition|physical|productivity|protocols?|recovery|research|science|sleep|stretching|tools?|treatments?)\b/i.test(
+    normalized
+  );
 }
 
 function extractEditorialSummary(description: string): string {
@@ -339,6 +385,8 @@ function normalizeHubermanUrl(value: string): string | undefined {
     if (!/(^|\.)hubermanlab\.com$/i.test(url.hostname)) return undefined;
     url.protocol = "https:";
     url.hostname = "www.hubermanlab.com";
+    url.pathname = EPISODE_PATH_REPLACEMENTS[url.pathname] ?? url.pathname;
+    url.search = "";
     url.hash = "";
     return url.toString().replace(/\/$/, "");
   } catch {

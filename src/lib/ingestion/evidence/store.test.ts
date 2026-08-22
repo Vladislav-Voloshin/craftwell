@@ -32,12 +32,18 @@ interface StoredDocumentSourceRow {
   source_key: string;
 }
 
+interface RecordedRpc {
+  name: string;
+  args: Record<string, unknown>;
+}
+
 function createFakeClient(
   existingDocuments: StoredDocumentRow[] = [],
   existingPeople: StoredPersonRow[] = [],
   existingDocumentSources: StoredDocumentSourceRow[] = []
 ) {
   const upserts: RecordedUpsert[] = [];
+  const rpcs: RecordedRpc[] = [];
 
   class Query {
     private action: "select" | "upsert" = "select";
@@ -128,12 +134,146 @@ function createFakeClient(
     from(table: string) {
       return new Query(table);
     },
+    rpc(name: string, args: Record<string, unknown>) {
+      rpcs.push({ name, args });
+      return Promise.resolve({ data: null, error: null });
+    },
   } as unknown as SupabaseClient;
 
-  return { client, upserts };
+  return { client, upserts, rpcs };
 }
 
 describe("evidence store persistence", () => {
+  it("merges duplicate in-batch DOI records while preserving both source IDs", async () => {
+    const { client, upserts } = createFakeClient();
+    const store = createEvidenceStore(client);
+
+    const result = await store.persistBatch({
+      sourceKey: "pubmed-guests",
+      cursor: "2026-08-22T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "pubmed:100",
+          sourceKey: "pubmed-guests",
+          externalId: "100",
+          documentType: "study",
+          canonicalUrl: "https://pubmed.ncbi.nlm.nih.gov/100/",
+          title: "First PubMed record",
+          pmid: "100",
+          doi: "10.1000/shared",
+          rightsMode: "metadata_only",
+        },
+        {
+          identityKey: "pubmed:101",
+          sourceKey: "pubmed-guests",
+          externalId: "101",
+          documentType: "study",
+          canonicalUrl: "https://pubmed.ncbi.nlm.nih.gov/101/",
+          title: "Duplicate PubMed record",
+          pmid: "101",
+          doi: "10.1000/shared",
+          rightsMode: "metadata_only",
+        },
+      ],
+      people: [],
+    });
+
+    expect(result).toMatchObject({ discovered: 2, inserted: 1, skipped: 1, errors: 0 });
+    expect(upserts.find((call) => call.table === "evidence_documents")?.rows).toHaveLength(1);
+    const sourceRows = upserts.find((call) => call.table === "document_sources")?.rows ?? [];
+    expect(sourceRows).toHaveLength(2);
+    expect(new Set(sourceRows.map((row) => row.document_id)).size).toBe(1);
+    expect(sourceRows.map((row) => row.external_id)).toEqual(["100", "101"]);
+  });
+
+  it("prefers an existing DOI record over a stale identity row without that DOI", async () => {
+    const { client, upserts } = createFakeClient([
+      {
+        id: "stale-pubmed",
+        identity_key: "pubmed:200",
+        content_fingerprint: "stale",
+        pmid: "200",
+        doi: null,
+      },
+      {
+        id: "canonical-doi",
+        identity_key: "doi:10.1000/converged",
+        content_fingerprint: "crossref",
+        pmid: null,
+        doi: "10.1000/converged",
+      },
+    ]);
+    const store = createEvidenceStore(client);
+
+    const result = await store.persistBatch({
+      sourceKey: "pubmed-guests",
+      cursor: "2026-08-22T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "pubmed:200",
+          sourceKey: "pubmed-guests",
+          externalId: "200",
+          documentType: "study",
+          canonicalUrl: "https://pubmed.ncbi.nlm.nih.gov/200/",
+          title: "Now linked to its DOI",
+          pmid: "200",
+          doi: "10.1000/converged",
+          rightsMode: "metadata_only",
+        },
+      ],
+      people: [],
+    });
+
+    expect(result).toMatchObject({ inserted: 0, updated: 0, skipped: 1, errors: 0 });
+    expect(upserts.some((call) => call.table === "evidence_documents")).toBe(false);
+    expect(upserts.find((call) => call.table === "document_sources")?.rows[0]).toMatchObject({
+      document_id: "canonical-doi",
+      external_id: "200",
+    });
+  });
+
+  it("atomically clears stale synchronized roles when a source no longer reports a guest", async () => {
+    const { client, rpcs } = createFakeClient();
+    const store = createEvidenceStore(client);
+
+    await store.persistBatch({
+      sourceKey: "huberman-rss",
+      cursor: "2026-08-22T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "huberman-episode:solo",
+          sourceKey: "huberman-rss",
+          externalId: "solo",
+          documentType: "podcast_episode",
+          canonicalUrl: "https://www.hubermanlab.com/episode/solo",
+          title: "A solo episode with science-based tools",
+          rightsMode: "metadata_only",
+        },
+        {
+          identityKey: "book:reference",
+          sourceKey: "huberman-rss",
+          externalId: "book-reference",
+          documentType: "book",
+          canonicalUrl: "https://openlibrary.org/isbn/123",
+          title: "Referenced book",
+          rightsMode: "metadata_only",
+        },
+      ],
+      people: [],
+      synchronizePersonRoles: { guest: ["huberman-episode:solo"] },
+    });
+
+    expect(rpcs).toHaveLength(1);
+    expect(rpcs[0]).toMatchObject({
+      name: "replace_document_people_for_role",
+      args: {
+        p_document_ids: ["stored-0-huberman-episode:solo"],
+        p_role: "guest",
+        p_rows: [],
+      },
+    });
+  });
+
   it("links a DOI source to an existing PubMed document without inserting a duplicate", async () => {
     const { client, upserts } = createFakeClient([
       {

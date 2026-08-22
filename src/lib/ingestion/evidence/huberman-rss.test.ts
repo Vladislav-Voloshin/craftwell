@@ -62,6 +62,61 @@ describe("Huberman RSS evidence parser", () => {
     expect(parseHubermanRss(SAMPLE_FEED, new Date("2026-08-18"))).toEqual([]);
   });
 
+  it("repairs a retired official episode slug that otherwise returns 404", () => {
+    const feed = `<rss><channel><item>
+      <title>Essentials: Control Your Brain Chemistry for Focus, Motivation &amp; Well-Being</title>
+      <description>A solo Essentials episode.</description>
+      <guid>essentials-brain-chemistry</guid>
+      <link>https://www.hubermanlab.com/episode/essentials-optimize-and-control-your-brain-chemistry-to-improve-health-and-performance</link>
+    </item></channel></rss>`;
+
+    expect(parseHubermanRss(feed)[0].document.canonicalUrl).toBe(
+      "https://www.hubermanlab.com/episode/essentials-control-brain-chemistry-for-focus-motivation-and-well-being"
+    );
+  });
+
+  it.each([
+    [
+      "GUEST SERIES | Dr. Andy Galpin: How to Assess & Improve All Aspects of Your Fitness",
+      "Andy Galpin, PhD, is a professor of kinesiology.",
+      ["Andy Galpin"],
+    ],
+    [
+      "Journal Club with Dr. Peter Attia | Effects of Light & Dark on Mental Health & Treatments for Cancer",
+      "In this journal club episode, my guest is Dr. Peter Attia, MD, a physician.",
+      ["Peter Attia"],
+    ],
+    [
+      "Curing Disease | Mark Zuckerberg & Dr. Priscilla Chan",
+      "Mark Zuckerberg and Dr. Priscilla Chan join the podcast.",
+      ["Mark Zuckerberg", "Priscilla Chan"],
+    ],
+    [
+      "Health Policy | U.S. Surgeon General Dr. Vivek Murthy",
+      "Dr. Vivek Murthy, MD, is the U.S. Surgeon General.",
+      ["Vivek Murthy"],
+    ],
+    [
+      "Maximizing Productivity, Physical & Mental Health with Daily Tools",
+      "In this episode, I discuss science-supported tools.",
+      [],
+    ],
+    [
+      "Science-Supported Tools to Accelerate Your Fitness Goals",
+      "I explain tools gleaned from the guest series on fitness with Dr. Andy Galpin. First, I explain the program.",
+      [],
+    ],
+  ])("extracts only real guests from %s", (title, description, expectedGuests) => {
+    const feed = `<rss><channel><item>
+      <title><![CDATA[${title}]]></title>
+      <description><![CDATA[${description}]]></description>
+      <guid>${title}</guid>
+      <link>https://www.hubermanlab.com/episode/test</link>
+    </item></channel></rss>`;
+
+    expect(parseHubermanRss(feed)[0].document.guests).toEqual(expectedGuests);
+  });
+
   it("converts timestamps to seconds without storing the transcript", () => {
     expect(extractTimestampMarkers("\n(01:02:03) Tool: Example\n")).toEqual([
       { timestamp: "01:02:03", seconds: 3723, label: "Tool: Example" },

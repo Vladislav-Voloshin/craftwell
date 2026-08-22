@@ -82,6 +82,11 @@ interface PodcastEpisodeSchema {
   associatedMedia?: unknown;
 }
 
+interface ContributorCandidate {
+  name: string;
+  primaryUrl?: string;
+}
+
 export async function fetchHubermanEpisodePageEvidence(
   options: HubermanEpisodePageOptions
 ): Promise<EvidenceBatch> {
@@ -130,11 +135,17 @@ export async function fetchHubermanEpisodePageEvidence(
     }
   );
 
+  const documents = parsed.flatMap((page) => page.documents);
+  const episodeIdentityKeys = documents
+    .filter((document) => document.documentType === "podcast_episode")
+    .map((document) => document.identityKey);
+
   return {
     sourceKey: SOURCE_KEY,
     cursor: now.toISOString(),
-    documents: parsed.flatMap((page) => page.documents),
+    documents,
     people: parsed.flatMap((page) => page.people),
+    synchronizePersonRoles: { guest: episodeIdentityKeys },
     personSources: parsed.flatMap((page) => page.personSources),
     relations: parsed.flatMap((page) => page.relations),
     errors,
@@ -236,8 +247,24 @@ export function parseHubermanEpisodePage(
       })
     )
   );
-  const personSources = guests.flatMap((guest) =>
-    references
+  const personSources = guests.flatMap((guest) => [
+    ...(guest.primaryUrl
+      ? [
+          {
+            normalizedName: guest.normalizedName,
+            sourceKind: "other" as const,
+            url: guest.primaryUrl,
+            title: `Official Huberman Lab guest profile: ${guest.displayName}`,
+            verified: true,
+            metadata: {
+              discoveredOnEpisode: episode.identityKey,
+              relationshipStatus: "verified",
+              source: "official_podcast_episode_schema",
+            },
+          },
+        ]
+      : []),
+    ...references
       .filter(
         (reference) =>
           reference.relationType === "media_of" ||
@@ -255,8 +282,8 @@ export function parseHubermanEpisodePage(
             relationshipStatus: "candidate",
           },
         })
-      )
-  );
+      ),
+  ]);
 
   return {
     documents: allDocuments,
@@ -474,23 +501,51 @@ function extractGuests(
   schema: PodcastEpisodeSchema | undefined,
   fallbackNames: string[]
 ): Array<Omit<PersonMentionInput, "documentSourceKey" | "documentExternalId">> {
-  const contributorNames = asArray(schema?.contributor).flatMap((contributor) => {
-    if (typeof contributor === "string") return [contributor];
-    if (!contributor || typeof contributor !== "object") return [];
-    const name = (contributor as Record<string, unknown>).name;
-    return typeof name === "string" ? [decodeHtml(name)] : [];
-  });
-  const names = Array.from(new Set([...contributorNames, ...fallbackNames]));
-  const parsedGuests = names.flatMap((name) => {
+  const contributors = asArray(schema?.contributor).flatMap(
+    (contributor): ContributorCandidate[] => {
+      if (typeof contributor === "string") return [{ name: contributor }];
+      if (!contributor || typeof contributor !== "object") return [];
+      const record = contributor as Record<string, unknown>;
+      const name = record.name;
+      if (typeof name !== "string") return [];
+      const primaryUrl =
+        typeof record.url === "string" ? normalizeHubermanGuestUrl(record.url) : undefined;
+      return [{ name: decodeHtml(name), primaryUrl }];
+    }
+  );
+  const parsedFallbacks = fallbackNames.flatMap((name) => {
     const parsed = parsePersonLabel(name, "guest", {
       matchStatus: "extracted",
-      confidence: contributorNames.includes(name) ? 0.98 : 0.9,
-      evidence: contributorNames.includes(name)
-        ? "Guest named in official PodcastEpisode structured metadata"
-        : "Guest named in the official podcast RSS feed",
+      confidence: 0.9,
+      evidence: "Guest named in the official podcast RSS feed",
     });
     return parsed ? [parsed] : [];
   });
+  const parsedGuests = [...parsedFallbacks];
+  for (const contributor of contributors) {
+    const parsed = parsePersonLabel(contributor.name, "guest", {
+      matchStatus: "extracted",
+      confidence: 0.98,
+      evidence: "Guest named in official PodcastEpisode structured metadata",
+    });
+    if (!parsed) continue;
+    const fallbackIndex = parsedGuests.findIndex((guest) =>
+      namesLikelyReferToSamePerson(guest.normalizedName, parsed.normalizedName)
+    );
+    if (fallbackIndex >= 0) {
+      parsedGuests[fallbackIndex] = {
+        ...parsedGuests[fallbackIndex],
+        credentials: Array.from(
+          new Set([...parsedGuests[fallbackIndex].credentials, ...parsed.credentials])
+        ),
+        primaryUrl: contributor.primaryUrl ?? parsedGuests[fallbackIndex].primaryUrl,
+        confidence: 0.98,
+        evidence: "Guest confirmed by official PodcastEpisode structured metadata",
+      };
+    } else {
+      parsedGuests.push({ ...parsed, primaryUrl: contributor.primaryUrl });
+    }
+  }
   return Array.from(
     parsedGuests
       .reduce((byName, guest) => {
@@ -502,6 +557,60 @@ function extractGuests(
       }, new Map<string, (typeof parsedGuests)[number]>())
       .values()
   );
+}
+
+function normalizeHubermanGuestUrl(value: string): string | undefined {
+  try {
+    const url = new URL(decodeHtml(value));
+    if (!/(^|\.)hubermanlab\.com$/i.test(url.hostname) || !url.pathname.startsWith("/guests/")) {
+      return undefined;
+    }
+    url.protocol = "https:";
+    url.hostname = "www.hubermanlab.com";
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
+function namesLikelyReferToSamePerson(left: string, right: string): boolean {
+  if (left === right) return true;
+  const leftParts = left.split(" ");
+  const rightParts = right.split(" ");
+  if (leftParts.length !== rightParts.length || leftParts.length < 2) return false;
+  return leftParts.every((part, index) => similarNameToken(part, rightParts[index]));
+}
+
+function similarNameToken(left: string, right: string): boolean {
+  if (left === right) return true;
+  if (
+    Math.min(left.length, right.length) >= 4 &&
+    (left.startsWith(right) || right.startsWith(left))
+  ) {
+    return true;
+  }
+  if (Math.abs(left.length - right.length) > 1) return false;
+  let differences = 0;
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < left.length && rightIndex < right.length) {
+    if (left[leftIndex] === right[rightIndex]) {
+      leftIndex += 1;
+      rightIndex += 1;
+      continue;
+    }
+    differences += 1;
+    if (differences > 1) return false;
+    if (left.length > right.length) leftIndex += 1;
+    else if (right.length > left.length) rightIndex += 1;
+    else {
+      leftIndex += 1;
+      rightIndex += 1;
+    }
+  }
+  return true;
 }
 
 function extractTabPane(html: string, tabName: string): string {
