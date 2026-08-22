@@ -15,9 +15,9 @@ import type {
 
 export const HUBERMAN_RSS_URL = "https://feeds.megaphone.fm/hubermanlab";
 const MAX_RSS_BYTES = 5_000_000;
-const PROTOCOL_MARKER_POLICY = "action_cues_v2";
+const PROTOCOL_MARKER_POLICY = "action_cues_v3";
 const PROMOTIONAL_MARKER_PATTERN =
-  /\b(?:sponsors?|sponsored\s+by|advertisements?|ads?)\b|^\s*(?:support|subscribe|newsletter|disclaimer|title\s+card)\b/i;
+  /\b(?:sponsors?|sponsored\s+by|advertisements?|ads?|newsletters?|protocols?\s+book|book\s+recommendations?|zero[-\s]*cost\s+support|supporting\s+the\s+hlp|see\s+caption(?:\s+on\s+youtube)?|live\s+events?)\b|^\s*(?:support|subscribe|disclaimer|title\s+card|announcement)\b/i;
 const PROTOCOL_ACTION_CUE_PATTERN =
   /\b(?:tools?|protocols?|exercises?|meditat(?:e|es|ed|ing|ion|ions|ive)|breath(?:s|ing|work)?|supplements?|supplementation|doses?|dosage|practices?|training|exposures?|timing|how\s+to|steps?|recommend(?:ed|ation|ations|ing)?|routines?|methods?|techniques?|therap(?:y|ies)|interventions?|strateg(?:y|ies)|guidelines?|habits?|schedules?|optimi[sz](?:e|es|ed|ing|ation))\b/i;
 
