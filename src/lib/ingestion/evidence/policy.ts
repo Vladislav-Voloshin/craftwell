@@ -57,6 +57,7 @@ export function parsePersonLabel(
 ): Omit<PersonMentionInput, "documentSourceKey" | "documentExternalId"> | null {
   const cleaned = cleanHtml(value)
     .replace(/^with\s+/i, "")
+    .replace(/^(?:(?:u\.?s\.?)\s+)?surgeon\s+general\s+(?:dr\.?\s+)?/i, "")
     .replace(/^(?:dr|prof|professor)\.?\s+/i, "")
     .trim();
   const credentials = Array.from(

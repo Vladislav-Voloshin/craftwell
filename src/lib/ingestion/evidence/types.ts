@@ -104,6 +104,7 @@ export interface EvidenceBatch {
   personSources?: PersonSourceInput[];
   claims?: EvidenceClaimInput[];
   relations?: EvidenceRelationInput[];
+  synchronizePersonRoles?: Partial<Record<PersonRole, string[]>>;
   errors?: string[];
   metadata?: Record<string, unknown>;
 }

@@ -5,6 +5,7 @@
  *   npx tsx scripts/backfill-evidence-references.ts --source=all
  *   npx tsx scripts/backfill-evidence-references.ts --source=episodes --offset=0 --limit=50
  *   npx tsx scripts/backfill-evidence-references.ts --source=crossref --offset=0 --limit=25
+ *   npx tsx scripts/backfill-evidence-references.ts --source=pubmed --offset=0 --limit=25
  *   npx tsx scripts/backfill-evidence-references.ts --source=books --offset=0 --limit=500
  *   npx tsx scripts/backfill-evidence-references.ts --source=crossref --limit=1 --rows=5 --max-pages=1
  */
@@ -13,6 +14,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 
 import { fetchGuestCrossrefEvidence } from "../src/lib/ingestion/evidence/crossref-guests";
+import { fetchGuestPubMedEvidence } from "../src/lib/ingestion/evidence/pubmed-guests";
 import { fetchHubermanEpisodePageEvidence } from "../src/lib/ingestion/evidence/huberman-episode-pages";
 import { fetchHubermanRssEvidence } from "../src/lib/ingestion/evidence/huberman-rss";
 import { fetchOpenLibraryBookEvidence } from "../src/lib/ingestion/evidence/open-library-books";
@@ -47,11 +49,14 @@ async function main() {
   if (source === "all" || source === "crossref") {
     await backfillCrossrefGuests(store);
   }
+  if (source === "all" || source === "pubmed") {
+    await backfillPubMedGuests(store);
+  }
   if (source === "all" || source === "books") {
     await backfillBookCatalog(store);
   }
-  if (!["all", "episodes", "crossref", "books"].includes(source)) {
-    throw new Error("--source must be all, episodes, crossref, or books");
+  if (!["all", "episodes", "crossref", "pubmed", "books"].includes(source)) {
+    throw new Error("--source must be all, episodes, crossref, pubmed, or books");
   }
 }
 
@@ -136,6 +141,10 @@ async function backfillEpisodeReferences(store: EvidenceStore): Promise<void> {
         documents: episodes,
         people: rss.people.filter((person) => episodeExternalIds.has(person.documentExternalId)),
         claims: rss.claims?.filter((claim) => episodeIdentityKeys.has(claim.documentIdentityKey)),
+        synchronizePersonRoles: {
+          host: episodes.map((episode) => episode.identityKey),
+          guest: episodes.map((episode) => episode.identityKey),
+        },
       },
       {
         cursorStart: episodes.at(-1)?.publishedAt,
@@ -184,6 +193,37 @@ async function backfillCrossrefGuests(store: EvidenceStore): Promise<void> {
     }
     console.log(
       `Crossref guest ${offset + index + 1}/${offset + guests.length}: ${guest.displayName}, ${batch.documents.length} records, ${batch.errors?.length ?? 0} errors`
+    );
+  }
+}
+
+async function backfillPubMedGuests(store: EvidenceStore): Promise<void> {
+  const candidates = await store.listGuestResearchCandidates(500);
+  const filteredCandidates = guestFilter
+    ? candidates.filter((guest) => guest.normalizedName === normalizePersonName(guestFilter))
+    : candidates;
+  const guests = filteredCandidates.slice(offset, offset + limit);
+  if (guestFilter && guests.length === 0) {
+    throw new Error(`No guest candidate matched --guest=${guestFilter}`);
+  }
+  console.log(`PubMed guest backfill: ${guests.length} guests`);
+
+  for (let index = 0; index < guests.length; index += 1) {
+    const guest = guests[index];
+    const batch = await fetchGuestPubMedEvidence({
+      guests: [guest],
+      from: new Date("1900-01-01T00:00:00.000Z"),
+      to: new Date(),
+      maxResultsPerGuest: crossrefRows,
+      apiKey: process.env.NCBI_API_KEY,
+      contactEmail: process.env.NCBI_CONTACT_EMAIL,
+    });
+    await persistBackfillBatch(store, batch, {});
+    if ((batch.errors?.length ?? 0) === 0) {
+      await store.markGuestResearchChecked([guest.normalizedName], new Date().toISOString());
+    }
+    console.log(
+      `PubMed guest ${offset + index + 1}/${offset + guests.length}: ${guest.displayName}, ${batch.documents.length} records, ${batch.errors?.length ?? 0} errors`
     );
   }
 }

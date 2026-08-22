@@ -24,7 +24,7 @@ const episode: EvidenceDocumentInput = {
 const html = `
   <html>
     <script type="application/ld+json">
-      {"@graph":[{"@type":"PodcastEpisode","episodeNumber":"300","contributor":{"@type":"Person","name":"Dr. Ralph Adolphs"},"associatedMedia":[{"@type":"MediaObject","contentUrl":"https://youtu.be/abc123","encodingFormat":"text/html"},{"@type":"MediaObject","contentUrl":"https://open.spotify.com/episode/spotify123?si=tracking","encodingFormat":"audio/mpeg"}]}]}
+      {"@graph":[{"@type":"PodcastEpisode","episodeNumber":"300","contributor":{"@type":"Person","name":"Dr. Ralph Adolphs","url":"https://www.hubermanlab.com/guests/dr-ralph-adolphs"},"associatedMedia":[{"@type":"MediaObject","contentUrl":"https://youtu.be/abc123","encodingFormat":"text/html"},{"@type":"MediaObject","contentUrl":"https://open.spotify.com/episode/spotify123?si=tracking","encodingFormat":"audio/mpeg"}]}]}
     </script>
     <div data-w-tab="Show Notes" class="w-tab-pane">
       <a href="https://www.pnas.org/doi/10.1073/pnas.0914054107?utm_source=test">Emotion study</a>
@@ -66,6 +66,13 @@ describe("Huberman episode page metadata parser", () => {
     expect(parsed.people.every((person) => person.normalizedName === "ralph adolphs")).toBe(true);
     expect(parsed.personSources).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          normalizedName: "ralph adolphs",
+          sourceKind: "other",
+          url: "https://www.hubermanlab.com/guests/dr-ralph-adolphs",
+          verified: true,
+          metadata: expect.objectContaining({ relationshipStatus: "verified" }),
+        }),
         expect.objectContaining({
           normalizedName: "ralph adolphs",
           sourceKind: "institution",
@@ -121,5 +128,18 @@ describe("Huberman episode page metadata parser", () => {
     expect(references).toHaveLength(3);
     expect(references.every((reference) => reference.relationType === "mentions")).toBe(true);
     expect(references.every((reference) => reference.documentType === "media")).toBe(true);
+  });
+
+  it("reconciles a small schema spelling difference to the RSS guest identity", () => {
+    const parsed = parseHubermanEpisodePage(
+      `<script type="application/ld+json">
+        {"@type":"PodcastEpisode","contributor":{"@type":"Person","name":"Dr. Abud Bakari","url":"https://www.hubermanlab.com/guests/dr-abud-bakari"}}
+      </script>`,
+      { ...episode, guests: ["Abud Bakri"] }
+    );
+
+    const guests = new Set(parsed.people.map((person) => person.normalizedName));
+    expect(guests).toEqual(new Set(["abud bakri"]));
+    expect(parsed.people[0].primaryUrl).toBe("https://www.hubermanlab.com/guests/dr-abud-bakari");
   });
 });
