@@ -1,0 +1,291 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { describe, expect, it } from "vitest";
+import { createEvidenceStore } from "./store";
+import type { EvidenceBatch } from "./types";
+
+interface StoredDocumentRow {
+  id: string;
+  identity_key: string;
+  content_fingerprint: string | null;
+  pmid: string | null;
+  doi: string | null;
+}
+
+interface RecordedUpsert {
+  table: string;
+  rows: Array<Record<string, unknown>>;
+  onConflict?: string;
+}
+
+interface StoredPersonRow {
+  id: string;
+  normalized_name: string;
+  display_name: string;
+  credentials: string[];
+  affiliations: string[];
+  primary_url: string | null;
+  metadata: Record<string, unknown>;
+}
+
+function createFakeClient(
+  existingDocuments: StoredDocumentRow[] = [],
+  existingPeople: StoredPersonRow[] = []
+) {
+  const upserts: RecordedUpsert[] = [];
+
+  class Query {
+    private action: "select" | "upsert" = "select";
+    private filter?: { column: string; values: string[] };
+    private rows: Array<Record<string, unknown>> = [];
+    private onConflict?: string;
+
+    constructor(private readonly table: string) {}
+
+    select() {
+      return this;
+    }
+
+    in(column: string, values: string[]) {
+      this.filter = { column, values };
+      return this;
+    }
+
+    upsert(rows: Array<Record<string, unknown>>, options?: { onConflict?: string }) {
+      this.action = "upsert";
+      this.rows = rows;
+      this.onConflict = options?.onConflict;
+      upserts.push({ table: this.table, rows, onConflict: this.onConflict });
+      return this;
+    }
+
+    then<TResult1 = unknown, TResult2 = never>(
+      onfulfilled?: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    ) {
+      return Promise.resolve(this.execute()).then(onfulfilled, onrejected);
+    }
+
+    private execute() {
+      if (this.action === "upsert" && this.table === "evidence_documents") {
+        return {
+          data: this.rows.map((row, index) => ({
+            id: `stored-${index}-${String(row.identity_key)}`,
+            identity_key: row.identity_key,
+            content_fingerprint: row.content_fingerprint,
+          })),
+          error: null,
+        };
+      }
+      if (this.action === "upsert" && this.table === "people") {
+        return {
+          data: this.rows.map((row, index) => ({
+            id:
+              existingPeople.find((person) => person.normalized_name === row.normalized_name)?.id ??
+              `person-${index}`,
+            normalized_name: row.normalized_name,
+          })),
+          error: null,
+        };
+      }
+      if (this.action === "upsert") return { data: null, error: null };
+      if (!this.filter) {
+        return { data: [], error: null };
+      }
+      if (this.table === "people") {
+        return {
+          data: existingPeople.filter((person) =>
+            this.filter!.values.includes(person.normalized_name)
+          ),
+          error: null,
+        };
+      }
+      if (this.table !== "evidence_documents") return { data: [], error: null };
+      return {
+        data: existingDocuments.filter((document) => {
+          const value = document[this.filter!.column as keyof StoredDocumentRow];
+          return typeof value === "string" && this.filter!.values.includes(value);
+        }),
+        error: null,
+      };
+    }
+  }
+
+  const client = {
+    from(table: string) {
+      return new Query(table);
+    },
+  } as unknown as SupabaseClient;
+
+  return { client, upserts };
+}
+
+describe("evidence store persistence", () => {
+  it("links a DOI source to an existing PubMed document without inserting a duplicate", async () => {
+    const { client, upserts } = createFakeClient([
+      {
+        id: "existing-pubmed",
+        identity_key: "pubmed:12345",
+        content_fingerprint: "existing-fingerprint",
+        pmid: "12345",
+        doi: "10.1000/example",
+      },
+    ]);
+    const store = createEvidenceStore(client);
+
+    const result = await store.persistBatch({
+      sourceKey: "crossref-guests",
+      cursor: "2026-08-18T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "doi:10.1000/example",
+          sourceKey: "crossref-guests",
+          externalId: "doi:10.1000/example",
+          documentType: "publication",
+          canonicalUrl: "https://doi.org/10.1000/example",
+          title: "Example publication",
+          doi: "10.1000/EXAMPLE",
+          rightsMode: "metadata_only",
+        },
+      ],
+      people: [],
+    });
+
+    expect(result).toMatchObject({ inserted: 0, updated: 0, skipped: 1, errors: 0 });
+    expect(upserts.some((call) => call.table === "evidence_documents")).toBe(false);
+    expect(upserts.find((call) => call.table === "document_sources")?.rows[0]).toMatchObject({
+      document_id: "existing-pubmed",
+      source_key: "crossref-guests",
+      external_id: "doi:10.1000/example",
+    });
+  });
+
+  it("persists pending claims and episode-to-reference provenance with canonical IDs", async () => {
+    const { client, upserts } = createFakeClient();
+    const store = createEvidenceStore(client);
+    const batch: EvidenceBatch = {
+      sourceKey: "huberman-episode-pages",
+      cursor: "2026-08-18T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "huberman:episode-1",
+          sourceKey: "huberman-episode-pages",
+          externalId: "episode-1",
+          documentType: "podcast_episode",
+          canonicalUrl: "https://www.hubermanlab.com/episode/episode-1",
+          title: "Episode one",
+          rightsMode: "metadata_only",
+        },
+        {
+          identityKey: "doi:10.1000/reference",
+          sourceKey: "huberman-episode-pages",
+          externalId: "doi:10.1000/reference",
+          documentType: "publication",
+          canonicalUrl: "https://doi.org/10.1000/reference",
+          title: "Referenced study",
+          doi: "10.1000/reference",
+          rightsMode: "metadata_only",
+        },
+      ],
+      people: [],
+      claims: [
+        {
+          documentIdentityKey: "huberman:episode-1",
+          claimHash: "claim-1",
+          claimText: "Candidate protocol mentioned in public show-note metadata.",
+          claimType: "protocol",
+          evidenceLevel: "unknown",
+        },
+      ],
+      relations: [
+        {
+          sourceDocumentIdentityKey: "huberman:episode-1",
+          targetDocumentIdentityKey: "doi:10.1000/reference",
+          sourceKey: "huberman-episode-pages",
+          relationType: "cites",
+        },
+      ],
+    };
+
+    const result = await store.persistBatch(batch);
+
+    expect(result).toMatchObject({ inserted: 2, updated: 0, skipped: 0, errors: 0 });
+    expect(upserts.find((call) => call.table === "evidence_claims")?.rows[0]).toMatchObject({
+      document_id: "stored-0-huberman:episode-1",
+      claim_hash: "claim-1",
+      claim_type: "protocol",
+    });
+    expect(
+      upserts.find((call) => call.table === "evidence_document_relations")?.rows[0]
+    ).toMatchObject({
+      source_document_id: "stored-0-huberman:episode-1",
+      target_document_id: "stored-1-doi:10.1000/reference",
+      source_key: "huberman-episode-pages",
+      relation_type: "cites",
+    });
+  });
+
+  it("does not let unverified author candidates overwrite a guest profile", async () => {
+    const { client, upserts } = createFakeClient(
+      [],
+      [
+        {
+          id: "person-peter",
+          normalized_name: "peter attia",
+          display_name: "Peter Attia",
+          credentials: ["MD"],
+          affiliations: ["Early Medical"],
+          primary_url: "https://peterattiamd.com",
+          metadata: { roles: ["guest"] },
+        },
+      ]
+    );
+    const store = createEvidenceStore(client);
+
+    await store.persistBatch({
+      sourceKey: "crossref-guests",
+      cursor: "2026-08-18T00:00:00.000Z",
+      documents: [
+        {
+          identityKey: "doi:10.1000/battery",
+          sourceKey: "crossref-guests",
+          externalId: "doi:10.1000/battery",
+          documentType: "publication",
+          canonicalUrl: "https://doi.org/10.1000/battery",
+          title: "Battery research",
+          doi: "10.1000/battery",
+          rightsMode: "metadata_only",
+        },
+      ],
+      people: [
+        {
+          documentSourceKey: "crossref-guests",
+          documentExternalId: "doi:10.1000/battery",
+          displayName: "Peter Attia",
+          normalizedName: "peter attia",
+          credentials: ["PhD"],
+          affiliations: ["Battery Lab"],
+          primaryUrl: "https://wrong.example.com",
+          role: "author",
+          matchStatus: "candidate",
+          confidence: 0.48,
+          metadata: { crossrefMatchedName: "Peter M Attia", orcid: "candidate" },
+        },
+      ],
+    });
+
+    expect(upserts.find((call) => call.table === "people")?.rows[0]).toEqual({
+      normalized_name: "peter attia",
+      display_name: "Peter Attia",
+      credentials: ["MD"],
+      affiliations: ["Early Medical"],
+      primary_url: "https://peterattiamd.com",
+      metadata: { roles: ["guest"] },
+    });
+    expect(upserts.find((call) => call.table === "document_people")?.rows[0]).toMatchObject({
+      person_id: "person-peter",
+      role: "author",
+      match_status: "candidate",
+      metadata: { crossrefMatchedName: "Peter M Attia", orcid: "candidate" },
+    });
+  });
+});

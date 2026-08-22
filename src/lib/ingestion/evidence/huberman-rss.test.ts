@@ -40,6 +40,14 @@ describe("Huberman RSS evidence parser", () => {
     expect(episode.document.sourceExcerpt!.length).toBeLessThanOrEqual(500);
     expect(episode.document.metadata).not.toHaveProperty("transcript");
     expect(episode.document.metadata?.protocolMarkers).toHaveLength(2);
+    expect(episode.claims).toHaveLength(2);
+    expect(episode.claims[0]).toMatchObject({
+      documentIdentityKey: "huberman-episode:episode-guid-294",
+      claimType: "protocol",
+      evidenceLevel: "unknown",
+      extractionMethod: "deterministic_timestamp_marker",
+      structuredData: { reviewRequired: true },
+    });
     expect(episode.people.map((person) => person.normalizedName)).toEqual([
       "andrew huberman",
       "ralph adolphs",

@@ -100,6 +100,7 @@ Create a `.env.local` file with the following:
 | `CRON_SECRET`                    | Production cron | Authenticates Vercel's weekly ingestion request                          |
 | `NCBI_CONTACT_EMAIL`             | Recommended     | Operator contact sent to NCBI E-utilities                                |
 | `NCBI_API_KEY`                   | No              | Raises NCBI E-utilities rate limits                                      |
+| `CROSSREF_CONTACT_EMAIL`         | Recommended     | Operator contact for the Crossref polite pool                            |
 | `LOG_LEVEL`                      | No              | Pino log level (default: `info` in production, `debug` in dev)           |
 | `NEXT_PUBLIC_APP_URL`            | No              | App URL (default: `http://localhost:3000`)                               |
 | `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No              | Set to `true` only after Apple is enabled in Supabase (default: `false`) |

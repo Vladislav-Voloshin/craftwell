@@ -1,7 +1,12 @@
 import { extractTopics } from "../shared";
+import { fetchEvidenceUrl } from "./fetch";
+import { createSourceExcerpt, fingerprintSourceVersion } from "./policy";
 import type { EvidenceBatch, EvidenceDocumentInput } from "./types";
 
 export const HUBERMAN_SITEMAP_URL = "https://www.hubermanlab.com/sitemap.xml";
+const MAX_PAGE_METADATA_REQUESTS = 500;
+const MAX_SITEMAP_BYTES = 2_000_000;
+const MAX_PAGE_BYTES = 1_000_000;
 
 const INCLUDED_SECTIONS = new Set([
   "newsletter",
@@ -17,28 +22,97 @@ export async function fetchHubermanSiteEvidence(
   options: {
     now?: Date;
     fetchImpl?: typeof fetch;
+    enrichPageMetadata?: boolean;
+    concurrency?: number;
   } = {}
 ): Promise<EvidenceBatch> {
   const now = options.now ?? new Date();
-  const response = await (options.fetchImpl ?? fetch)(HUBERMAN_SITEMAP_URL, {
-    headers: {
-      Accept: "application/xml, text/xml;q=0.9",
-      "User-Agent": "CraftwellEvidenceBot/1.0 (+https://craftwell.vercel.app)",
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchEvidenceUrl(
+    HUBERMAN_SITEMAP_URL,
+    {
+      headers: {
+        Accept: "application/xml, text/xml;q=0.9",
+        "User-Agent": "CraftwellEvidenceBot/1.0 (+https://craftwell.vercel.app)",
+      },
     },
-    signal: AbortSignal.timeout(20_000),
-  });
+    fetchImpl,
+    { timeoutMs: 20_000, retries: 2 }
+  );
   if (!response.ok) {
     throw new Error(`Huberman sitemap request failed with ${response.status}`);
   }
 
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_SITEMAP_BYTES) {
+    throw new Error("Huberman sitemap exceeded the parser size limit");
+  }
+  const sitemap = await response.text();
+  if (sitemap.length > MAX_SITEMAP_BYTES) {
+    throw new Error("Huberman sitemap exceeded the parser size limit");
+  }
+  const sitemapDocuments = parseHubermanSitemap(sitemap);
+  const errors: string[] = [];
+  const enrichPageMetadata = options.enrichPageMetadata !== false;
+  const documents = !enrichPageMetadata
+    ? sitemapDocuments
+    : await enrichHubermanPages(sitemapDocuments, fetchImpl, options.concurrency ?? 4, errors);
+  const pageMetadataRequested = enrichPageMetadata
+    ? Math.min(sitemapDocuments.length, MAX_PAGE_METADATA_REQUESTS)
+    : 0;
+
   return {
     sourceKey: "huberman-site",
     cursor: now.toISOString(),
-    documents: parseHubermanSitemap(await response.text()),
+    documents,
     people: [],
+    errors,
     metadata: {
       sitemapUrl: HUBERMAN_SITEMAP_URL,
-      contentPolicy: "public_url_metadata_only_no_page_copying",
+      pageMetadataRequested,
+      pageMetadataParsed: Math.max(pageMetadataRequested - errors.length, 0),
+      deferredPages: enrichPageMetadata
+        ? Math.max(sitemapDocuments.length - MAX_PAGE_METADATA_REQUESTS, 0)
+        : sitemapDocuments.length,
+      failedPages: errors.length,
+      contentPolicy: "public_url_title_date_and_short_meta_excerpt_only_no_page_copying",
+    },
+  };
+}
+
+export function parseHubermanPageMetadata(
+  html: string
+): Pick<
+  EvidenceDocumentInput,
+  "title" | "sourceExcerpt" | "publishedAt" | "rightsMode" | "metadata"
+> {
+  const title = decodeXml(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const description = decodeXml(extractMetaContent(html, "description"));
+  const publishedAt = extractStructuredDate(html, "datePublished");
+  const modifiedAt = extractStructuredDate(html, "dateModified");
+  const schemaType = decodeXml(html.match(/["']@type["']\s*:\s*["']([^"']+)["']/i)?.[1] ?? "");
+  const sourceExcerpt = createSourceExcerpt(description);
+
+  return {
+    title,
+    sourceExcerpt,
+    publishedAt,
+    rightsMode: sourceExcerpt ? "short_excerpt" : "metadata_only",
+    metadata: {
+      sourcePublishedAt: publishedAt ?? null,
+      sourceUpdatedAt: modifiedAt ?? null,
+      schemaType: schemaType || null,
+      sourceVersion: fingerprintSourceVersion({
+        title,
+        description,
+        publishedAt,
+        modifiedAt,
+        schemaType,
+      }),
+      contentPolicy: "title_date_and_short_meta_excerpt_only_no_page_copying",
     },
   };
 }
@@ -117,4 +191,84 @@ function decodeXml(value: string): string {
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'");
+}
+
+async function enrichHubermanPages(
+  documents: EvidenceDocumentInput[],
+  fetchImpl: typeof fetch,
+  concurrency: number,
+  errors: string[]
+): Promise<EvidenceDocumentInput[]> {
+  const enriched = new Map<string, EvidenceDocumentInput>();
+  const queue = documents.slice(0, MAX_PAGE_METADATA_REQUESTS);
+  const workers = Array.from(
+    { length: Math.min(Math.max(concurrency, 1), 6, queue.length) },
+    async () => {
+      while (queue.length > 0) {
+        const document = queue.shift();
+        if (!document) continue;
+        try {
+          const response = await fetchEvidenceUrl(
+            document.canonicalUrl,
+            {
+              headers: {
+                Accept: "text/html,application/xhtml+xml",
+                "User-Agent": "CraftwellEvidenceBot/1.0 (+https://craftwell.vercel.app)",
+              },
+            },
+            fetchImpl,
+            { timeoutMs: 20_000, retries: 2 }
+          );
+          if (!response.ok) throw new Error(`request returned ${response.status}`);
+          const declaredLength = Number(response.headers.get("content-length"));
+          if (Number.isFinite(declaredLength) && declaredLength > MAX_PAGE_BYTES) {
+            throw new Error("page exceeded metadata parser size limit");
+          }
+          const html = await response.text();
+          if (html.length > MAX_PAGE_BYTES) {
+            throw new Error("page exceeded metadata parser size limit");
+          }
+          const page = parseHubermanPageMetadata(html);
+          enriched.set(document.identityKey, {
+            ...document,
+            title: page.title || document.title,
+            sourceExcerpt: page.sourceExcerpt,
+            publishedAt: page.publishedAt ?? document.publishedAt,
+            rightsMode: page.rightsMode,
+            metadata: { ...(document.metadata ?? {}), ...(page.metadata ?? {}) },
+          });
+        } catch (error) {
+          enriched.set(document.identityKey, document);
+          errors.push(`${document.canonicalUrl}: ${toErrorMessage(error)}`);
+        }
+      }
+    }
+  );
+  await Promise.all(workers);
+  return documents.map((document) => enriched.get(document.identityKey) ?? document);
+}
+
+function extractMetaContent(html: string, name: string): string {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const nameFirst = new RegExp(
+    `<meta[^>]+(?:name|property)=["']${escaped}["'][^>]+content=["']([^"']*)["'][^>]*>`,
+    "i"
+  );
+  const contentFirst = new RegExp(
+    `<meta[^>]+content=["']([^"']*)["'][^>]+(?:name|property)=["']${escaped}["'][^>]*>`,
+    "i"
+  );
+  return html.match(nameFirst)?.[1] ?? html.match(contentFirst)?.[1] ?? "";
+}
+
+function extractStructuredDate(html: string, field: string): string | undefined {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const value = html.match(new RegExp(`["']${escaped}["']\\s*:\\s*["']([^"']+)["']`, "i"))?.[1];
+  if (!value) return undefined;
+  const date = new Date(decodeXml(value));
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message.slice(0, 500) : "Unknown error";
 }
