@@ -6,7 +6,11 @@ export default defineConfig<AuthOptions>({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 3 : 4,
+  // Keep CI at two workers: every full-suite worker creates one real Supabase
+  // password session, and three simultaneous sign-ins intermittently exceed
+  // the hosted auth service's per-IP capacity. Two workers remain parallel
+  // without making fixture setup contend with the app server.
+  workers: process.env.CI ? 2 : 4,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "html",
   timeout: 45000,
   use: {
