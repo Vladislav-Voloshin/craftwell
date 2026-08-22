@@ -5,6 +5,7 @@
  *   npx tsx scripts/backfill-evidence-references.ts --source=all
  *   npx tsx scripts/backfill-evidence-references.ts --source=episodes --offset=0 --limit=50
  *   npx tsx scripts/backfill-evidence-references.ts --source=crossref --offset=0 --limit=25
+ *   npx tsx scripts/backfill-evidence-references.ts --source=books --offset=0 --limit=500
  *   npx tsx scripts/backfill-evidence-references.ts --source=crossref --limit=1 --rows=5 --max-pages=1
  */
 import { config } from "dotenv";
@@ -14,8 +15,10 @@ config({ path: ".env.local", override: true });
 import { fetchGuestCrossrefEvidence } from "../src/lib/ingestion/evidence/crossref-guests";
 import { fetchHubermanEpisodePageEvidence } from "../src/lib/ingestion/evidence/huberman-episode-pages";
 import { fetchHubermanRssEvidence } from "../src/lib/ingestion/evidence/huberman-rss";
+import { fetchOpenLibraryBookEvidence } from "../src/lib/ingestion/evidence/open-library-books";
 import { normalizePersonName } from "../src/lib/ingestion/evidence/policy";
 import { createEvidenceStore } from "../src/lib/ingestion/evidence/store";
+import { getSupabaseAdmin } from "../src/lib/ingestion/shared";
 import type {
   EvidenceBatch,
   EvidenceStore,
@@ -44,9 +47,47 @@ async function main() {
   if (source === "all" || source === "crossref") {
     await backfillCrossrefGuests(store);
   }
-  if (!["all", "episodes", "crossref"].includes(source)) {
-    throw new Error("--source must be all, episodes, or crossref");
+  if (source === "all" || source === "books") {
+    await backfillBookCatalog(store);
   }
+  if (!["all", "episodes", "crossref", "books"].includes(source)) {
+    throw new Error("--source must be all, episodes, crossref, or books");
+  }
+}
+
+async function backfillBookCatalog(store: EvidenceStore): Promise<void> {
+  const client = getSupabaseAdmin();
+  const requestedLimit = Math.min(limit, 500);
+  if (requestedLimit === 0) {
+    console.log("Open Library book backfill: 0 candidates requested");
+    return;
+  }
+  const end = offset + requestedLimit - 1;
+  const { data, error } = await client
+    .from("evidence_documents")
+    .select("identity_key, canonical_url, title, metadata")
+    .eq("document_type", "book")
+    .order("first_seen_at", { ascending: true })
+    .range(offset, end);
+  if (error) throw new Error(`Unable to load book catalog candidates: ${error.message}`);
+
+  const references = (data ?? []).map((document) => ({
+    identityKey: document.identity_key as string,
+    canonicalUrl: document.canonical_url as string,
+    title: document.title as string,
+    metadata:
+      document.metadata && typeof document.metadata === "object"
+        ? (document.metadata as Record<string, unknown>)
+        : undefined,
+  }));
+  const batch = await fetchOpenLibraryBookEvidence({
+    references,
+    contactEmail: process.env.OPEN_LIBRARY_CONTACT_EMAIL ?? process.env.NCBI_CONTACT_EMAIL,
+  });
+  const result = await persistBackfillBatch(store, batch, {});
+  console.log(
+    `Open Library book backfill: ${references.length} candidates, ${batch.documents.length} matches, ${result.errors} errors`
+  );
 }
 
 async function backfillEpisodeReferences(store: EvidenceStore): Promise<void> {
