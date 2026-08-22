@@ -13,6 +13,7 @@ describe("Open Library book metadata adapter", () => {
       expect(url.origin + url.pathname).toBe("https://openlibrary.org/search.json");
       expect(url.searchParams.get("q")).toBe("isbn:(0596156715)");
       expect(url.searchParams.get("fields")).not.toContain("description");
+      expect(url.searchParams.get("sort")).toBe("key");
       expect(String((init?.headers as Record<string, string>)["User-Agent"])).toContain(
         "operator@example.com"
       );
@@ -114,6 +115,77 @@ describe("Open Library book metadata adapter", () => {
   it("builds a bounded ISBN batch query", () => {
     const url = new URL(buildOpenLibrarySearchUrl(["0596156715", "9780596156718"]));
     expect(url.searchParams.get("q")).toBe("isbn:(0596156715 OR 9780596156718)");
+    expect(url.searchParams.get("sort")).toBe("key");
     expect(url.searchParams.get("limit")).toBe("50");
+  });
+
+  it("selects and fingerprints matches deterministically", async () => {
+    const responseDocuments = [
+      {
+        key: "/works/OL200W",
+        title: "Later Work",
+        author_name: ["Zed Author", "Ada Author"],
+        first_publish_year: 2010,
+        isbn: ["9780596156718", "0596156715"],
+        publisher: ["Zed Publisher", "Alpha Publisher"],
+        edition_key: ["OL900M", "OL800M"],
+        language: ["spa", "eng"],
+      },
+      {
+        key: "/works/OL100W",
+        title: "Canonical Work",
+        author_name: ["Zed Author", "Ada Author"],
+        first_publish_year: 2009,
+        isbn: ["9780596156718", "0596156715"],
+        publisher: ["Zed Publisher", "Alpha Publisher"],
+        edition_key: ["OL900M", "OL800M"],
+        language: ["spa", "eng"],
+      },
+    ];
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ docs: responseDocuments }))
+      .mockResolvedValueOnce(
+        Response.json({
+          docs: responseDocuments
+            .toReversed()
+            .map((document) =>
+              Object.fromEntries(
+                Object.entries(document).map(([key, value]) => [
+                  key,
+                  Array.isArray(value) ? value.toReversed() : value,
+                ])
+              )
+            ),
+        })
+      ) as typeof fetch;
+    const options = {
+      references: [
+        {
+          identityKey: "book:amazon:0596156715",
+          canonicalUrl: "https://www.amazon.com/dp/0596156715",
+          title: "Episode link label",
+        },
+      ],
+      now: new Date("2026-08-22T12:00:00.000Z"),
+      requestDelayMs: 0,
+      fetchImpl,
+    };
+
+    const first = await fetchOpenLibraryBookEvidence(options);
+    const second = await fetchOpenLibraryBookEvidence(options);
+
+    expect(second.documents).toEqual(first.documents);
+    expect(first.documents[0]).toMatchObject({
+      canonicalUrl: "https://openlibrary.org/works/OL100W",
+      title: "Canonical Work",
+      authors: ["Ada Author", "Zed Author"],
+      metadata: {
+        isbn: ["0596156715", "9780596156718"],
+        publishers: ["Alpha Publisher", "Zed Publisher"],
+        editionKeys: ["OL800M", "OL900M"],
+        languages: ["eng", "spa"],
+      },
+    });
   });
 });

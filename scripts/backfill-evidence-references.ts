@@ -34,7 +34,7 @@ const args = new Map(
 const source = args.get("source") ?? "all";
 const offset = positiveInteger(args.get("offset"), 0);
 const limit = positiveInteger(args.get("limit"), Number.MAX_SAFE_INTEGER);
-const episodeBatchSize = Math.min(Math.max(positiveInteger(args.get("batch-size"), 8), 1), 20);
+const backfillBatchSize = Math.min(Math.max(positiveInteger(args.get("batch-size"), 8), 1), 20);
 const crossrefRows = Math.min(Math.max(positiveInteger(args.get("rows"), 100), 1), 100);
 const crossrefMaxPages = Math.min(Math.max(positiveInteger(args.get("max-pages"), 10), 1), 25);
 const guestFilter = args.get("guest")?.trim();
@@ -84,9 +84,35 @@ async function backfillBookCatalog(store: EvidenceStore): Promise<void> {
     references,
     contactEmail: process.env.OPEN_LIBRARY_CONTACT_EMAIL ?? process.env.NCBI_CONTACT_EMAIL,
   });
-  const result = await persistBackfillBatch(store, batch, {});
+  const documentChunks = chunkValues(batch.documents, backfillBatchSize);
+  const batches = documentChunks.length > 0 ? documentChunks : [[]];
+  const result: PersistResult = {
+    discovered: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  for (let index = 0; index < batches.length; index += 1) {
+    const chunkResult = await persistBackfillBatch(
+      store,
+      {
+        ...batch,
+        documents: batches[index],
+        errors: index === 0 ? batch.errors : [],
+        metadata: {
+          ...batch.metadata,
+          backfillChunk: index + 1,
+          backfillChunks: batches.length,
+        },
+      },
+      {}
+    );
+    addPersistResult(result, chunkResult);
+  }
   console.log(
-    `Open Library book backfill: ${references.length} candidates, ${batch.documents.length} matches, ${result.errors} errors`
+    `Open Library book backfill: ${references.length} candidates, ${batch.documents.length} matches, ${result.updated} updated, ${result.skipped} skipped, ${result.errors} errors`
   );
 }
 
@@ -118,8 +144,8 @@ async function backfillEpisodeReferences(store: EvidenceStore): Promise<void> {
     );
   }
 
-  for (let index = 0; index < episodes.length; index += episodeBatchSize) {
-    const page = episodes.slice(index, index + episodeBatchSize);
+  for (let index = 0; index < episodes.length; index += backfillBatchSize) {
+    const page = episodes.slice(index, index + backfillBatchSize);
     const batch = await fetchHubermanEpisodePageEvidence({ episodes: page, concurrency: 3 });
     await persistBackfillBatch(store, batch, {
       cursorStart: page[0]?.publishedAt,
@@ -210,6 +236,22 @@ function positiveInteger(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function chunkValues<T>(values: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function addPersistResult(target: PersistResult, value: PersistResult): void {
+  target.discovered += value.discovered;
+  target.inserted += value.inserted;
+  target.updated += value.updated;
+  target.skipped += value.skipped;
+  target.errors += value.errors;
 }
 
 main().catch((error) => {
