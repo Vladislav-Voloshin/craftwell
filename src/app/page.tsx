@@ -129,11 +129,8 @@ export default function HomePage() {
               Browse Protocols
             </Link>
           </div>
-          <div className="flex justify-center pt-2">
-            <AppStoreButton />
-          </div>
           <p className="text-sm text-muted-foreground/70 pt-1">
-            iOS app coming soon &middot; Free to start, no credit card required
+            Free to start, no credit card required
           </p>
         </div>
       </section>
