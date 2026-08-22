@@ -14,9 +14,6 @@ vi.mock("@/lib/api/rate-limit", () => ({ checkIpRateLimit }));
 vi.mock("@/lib/ingestion/evidence/weekly", () => ({
   runWeeklyEvidenceIngestion,
 }));
-vi.mock("@/lib/ingestion/podcast-scraper", () => ({
-  runPodcastScraper: vi.fn(),
-}));
 vi.mock("@/lib/ingestion/embed-pipeline", () => ({
   runFullEmbeddingPipeline: vi.fn(),
 }));
@@ -96,6 +93,43 @@ describe("admin ingestion route", () => {
     expect(response.status).toBe(200);
     expect(runWeeklyEvidenceIngestion).toHaveBeenCalledWith(
       expect.objectContaining({ trigger: "manual" })
+    );
+  });
+
+  it("routes the legacy podcast action through safe RSS and episode-page metadata", async () => {
+    runWeeklyEvidenceIngestion.mockResolvedValue({
+      ok: true,
+      status: "succeeded",
+      startedAt: "2026-08-18T10:00:00.000Z",
+      completedAt: "2026-08-18T10:00:01.000Z",
+      sources: [],
+    });
+
+    const response = await POST(request({ step: "scrape-podcasts" }));
+
+    expect(response.status).toBe(200);
+    expect(runWeeklyEvidenceIngestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trigger: "manual",
+        sourceKeys: ["huberman-rss", "huberman-episode-pages"],
+      })
+    );
+  });
+
+  it("uses both PubMed and Crossref for guest research backfills", async () => {
+    runWeeklyEvidenceIngestion.mockResolvedValue({
+      ok: true,
+      status: "succeeded",
+      startedAt: "2026-08-18T10:00:00.000Z",
+      completedAt: "2026-08-18T10:00:01.000Z",
+      sources: [],
+    });
+
+    const response = await POST(request({ step: "backfill-guest-research" }));
+
+    expect(response.status).toBe(200);
+    expect(runWeeklyEvidenceIngestion).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceKeys: ["pubmed-guests", "crossref-guests"] })
     );
   });
 });

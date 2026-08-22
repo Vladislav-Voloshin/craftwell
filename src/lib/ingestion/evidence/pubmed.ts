@@ -249,7 +249,11 @@ export function parsePubMedSummaries(
         evidence:
           options.relatedPerson.evidence ??
           "Candidate result from an exact-name PubMed author query; identity requires review",
-        metadata: { authorQueryCandidate: true },
+        metadata: {
+          authorQueryCandidate: true,
+          candidateAffiliations: options.relatedPerson.affiliations,
+          candidatePrimaryUrl: options.relatedPerson.primaryUrl ?? null,
+        },
       });
     }
   }

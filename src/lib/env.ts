@@ -25,6 +25,7 @@ const ingestionSchema = supabaseAdminSchema.extend({
   YOUTUBE_API_KEY: z.string().min(1).optional(),
   NCBI_API_KEY: z.string().min(1).optional(),
   NCBI_CONTACT_EMAIL: z.string().email().optional(),
+  CROSSREF_CONTACT_EMAIL: z.string().email().optional(),
 });
 
 /** Vercel adds this value to scheduled requests as a Bearer token. */

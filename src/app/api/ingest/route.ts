@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { hasValidBearerToken } from "@/lib/api/bearer-token";
 import { ingestionEnv } from "@/lib/env";
-import { runPodcastScraper } from "@/lib/ingestion/podcast-scraper";
 import { runFullEmbeddingPipeline } from "@/lib/ingestion/embed-pipeline";
 import { runProtocolExtraction } from "@/lib/ingestion/protocol-extractor";
 import { runWeeklyEvidenceIngestion } from "@/lib/ingestion/evidence/weekly";
@@ -66,8 +65,14 @@ export async function POST(request: NextRequest) {
   try {
     switch (step) {
       case "scrape-podcasts": {
-        const result = await runPodcastScraper();
-        return NextResponse.json({ success: true, ...result });
+        const result = await runWeeklyEvidenceIngestion({
+          trigger: "manual",
+          requestId,
+          sourceKeys: ["huberman-rss", "huberman-episode-pages"],
+        });
+        return NextResponse.json(result, {
+          status: result.status === "failed" ? 500 : 200,
+        });
       }
 
       case "scrape-newsletters": {
@@ -158,10 +163,11 @@ export async function POST(request: NextRequest) {
           trigger: "backfill",
           requestId,
           now,
-          sourceKeys: ["pubmed-guests"],
+          sourceKeys: ["pubmed-guests", "crossref-guests"],
           pubmedFrom: new Date("1990-01-01T00:00:00.000Z"),
           guestCandidateLimit: 10,
           guestResultsPerCandidate: 10,
+          crossrefResultsPerCandidate: 50,
           includeRecentGuests: false,
         });
         return NextResponse.json(result, {

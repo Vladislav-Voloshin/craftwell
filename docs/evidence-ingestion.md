@@ -7,16 +7,18 @@ does not mirror copyrighted source libraries.
 
 ## Source policy
 
-| Source                    | Status                      | Stored                                                                             | Never stored automatically                       |
-| ------------------------- | --------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Huberman Lab RSS          | Active                      | Episode metadata, guests, topics, timestamps, up to 500 characters of feed summary | Audio or full transcripts                        |
-| Huberman public sitemap   | Active                      | Public newsletter, topic, subtopic, annual-letter, and protocol-page URL metadata  | Page bodies or premium content                   |
-| PubMed                    | Active                      | PMID, DOI, title, authors, journal, publication type, date, canonical URL          | Abstract or article text                         |
-| Huberman lab via PubMed   | Active                      | Publication candidates from an author and Stanford-affiliation query               | Unverified identity claims or article text       |
-| Podcast guests via PubMed | Active                      | Rotating exact-name author-query candidates                                        | Automatic assertion that a namesake is the guest |
-| Huberman YouTube          | Registered, adapter pending | Metadata only after an API key and adapter review                                  | Audio, captions, or copied descriptions          |
-| Examine                   | Disabled                    | Nothing until a suitable data licence is documented                                | Scraped member or editorial content              |
-| Books                     | Disabled, adapter pending   | Bibliographic metadata only after source review                                    | Book text                                        |
+| Source                         | Status                      | Stored                                                                                                 | Never stored automatically                        |
+| ------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Huberman Lab RSS               | Active                      | Episode metadata, guests, topics, timestamps, up to 500 characters of feed summary and protocol labels | Audio or full transcripts                         |
+| Huberman public episode pages  | Active                      | Transcript availability, cited links, books, associated media and lab/profile URLs                     | Page bodies, audio, captions or transcript text   |
+| Huberman public sitemap/pages  | Active                      | Public URLs, titles, structured dates and up to 500 characters of public meta description              | Page bodies or premium content                    |
+| PubMed                         | Active                      | PMID, DOI, title, authors, journal, publication type, date, canonical URL                              | Abstract or article text                          |
+| Huberman lab via PubMed        | Active                      | Publication candidates from an author and Stanford-affiliation query                                   | Unverified identity claims or article text        |
+| Podcast guests via PubMed      | Active                      | Rotating exact-name author-query candidates                                                            | Automatic assertion that a namesake is the guest  |
+| Podcast guests via Crossref    | Active                      | DOI metadata for publications, proceedings, preprints, chapters and books; ORCID candidates            | Abstracts, full text or automatic identity claims |
+| Huberman YouTube channel index | Registered, adapter pending | Episode-associated YouTube URLs are captured from official episode metadata                            | Channel-wide captions, audio or descriptions      |
+| Examine                        | Disabled                    | Nothing until a suitable data licence is documented                                                    | Scraped member or editorial content               |
+| Open Library catalog           | Disabled, adapter pending   | Books cited by official episode pages or Crossref are already retained as metadata                     | Book text                                         |
 
 Full transcripts, books, abstracts, captions, audio, and licensed databases may
 only enter the system when Craftwell has a licence or the rights-holder/user has
@@ -27,24 +29,35 @@ keys recursively and caps source excerpts at 500 characters.
 
 1. Vercel calls `GET /api/cron/weekly-ingestion` with `CRON_SECRET`.
 2. The job reads a 14-day overlap window so late-indexed records are recovered.
-3. Sources run independently and are recorded in `ingestion_runs`.
-4. Canonical records merge by stable identity (`huberman-episode:*` or
-   `pubmed:*`). `document_sources` retains every discovery path.
-5. New episode guests enter a rotating research queue. Five guests are checked
-   each week; exact-name results remain `candidate` until reviewed.
-6. Successful cursors and guest checkpoints advance. A failed source does not
-   roll back successful sources and is retried on the next overlapping run.
+3. RSS timestamp labels that look like tools or protocols become pending review
+   candidates; they are never published as medical claims automatically.
+4. Every new official episode page contributes transcript availability and a
+   graph of cited studies, books, media, and public lab/profile links.
+5. Sources run independently and are recorded in `ingestion_runs`. Retryable
+   HTTP failures use bounded backoff; per-page failures make the run partial.
+6. Canonical records merge by stable identity, PMID, or DOI.
+   `document_sources` retains every discovery path and
+   `evidence_document_relations` retains episode-to-resource provenance.
+7. New episode guests enter a rotating research queue. Five guests are checked
+   in both PubMed and Crossref each week; all name matches remain `candidate`
+   until reviewed.
+8. Successful cursors and guest checkpoints advance only when every selected
+   guest source succeeds. A failed source does not roll back successful sources.
 
 PubMed requests run serially and are paced for NCBI's unkeyed limit. Supplying
 `NCBI_API_KEY` raises the permitted request rate; `NCBI_CONTACT_EMAIL` identifies
-the operator to NCBI.
+the operator to NCBI. Crossref requests use its one-request-per-second public
+pool; `CROSSREF_CONTACT_EMAIL` opts into the polite pool when configured.
 
 ## Data model
 
 - `ingestion_sources`: source status, rights mode, checkpoint, and last error.
 - `evidence_documents`: one canonical metadata record per item.
 - `document_sources`: source-specific identifiers, URLs, and provenance.
-- `people` and `document_people`: hosts, guests, authors, and review status.
+- `evidence_document_relations`: cited, transcript, media and mention graph.
+- `people` and `document_people`: canonical people plus document-level identity
+  evidence and review status. Candidate ORCID, affiliation, and match evidence
+  stays on `document_people` and cannot overwrite a canonical profile.
 - `person_sources`: verified person, lab, publication, book, and media links.
 - `ingestion_runs`: counts, status, cursor, duration, and errors for every run.
 - `evidence_claims`: structured findings/protocol/safety records; new claims
@@ -58,13 +71,26 @@ revoked, and only the Supabase service role can operate the ingestion registry.
 
 Use `POST /api/ingest` with `Authorization: Bearer <ADMIN_API_KEY>`.
 
-| Step                         | Purpose                                                                                                               |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `weekly-evidence`            | Run the same incremental job as the cron                                                                              |
-| `backfill-huberman-evidence` | Load historical RSS episode metadata and guest names from December 2020                                               |
-| `backfill-huberman-lab`      | Load Huberman lab publication candidates from 2000                                                                    |
-| `backfill-recent-research`   | Load up to 500 broad PubMed records from the previous year                                                            |
-| `backfill-guest-research`    | Process the next 10 queued guests and their 10 latest candidate publications; repeat until the queue has been covered |
+| Step                         | Purpose                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `weekly-evidence`            | Run the same incremental job as the cron                                          |
+| `backfill-huberman-evidence` | Load historical RSS episode metadata and guest names from December 2020           |
+| `backfill-huberman-lab`      | Load Huberman lab publication candidates from 2000                                |
+| `backfill-recent-research`   | Load up to 500 broad PubMed records from the previous year                        |
+| `backfill-guest-research`    | Process the next 10 queued guests through PubMed and Crossref candidate discovery |
+
+For the bounded historical page/reference and Crossref backfills, run:
+
+```bash
+npx tsx scripts/backfill-evidence-references.ts --source=all
+```
+
+The script supports `--source=episodes|crossref`, `--offset`, `--limit`,
+`--batch-size`, `--rows`, `--max-pages`, and `--guest="Guest Name"` for bounded,
+resumable operations. Start Crossref backfills with a small guest-specific
+canary; every name match remains a candidate until a reviewer validates the
+identity against primary profile, affiliation, and ORCID evidence. The script
+stores bibliographic and link metadata only.
 
 Example:
 
@@ -92,5 +118,6 @@ allowed retention, attribution, deletion obligations, stable identity key, rate
 limit, and failure behavior. Add policy and parser tests, a live opt-in smoke
 test, a server-only source registry row, and an operational rollback plan.
 
-Legacy scrapers that copied PubMed abstracts, video descriptions, newsletters,
-or Examine content now fail closed and are not part of the supported pipeline.
+Legacy newsletter/chunking paths that copied raw third-party text fail closed.
+The legacy podcast admin action now delegates to the same provenance-safe RSS
+and episode-page pipeline.

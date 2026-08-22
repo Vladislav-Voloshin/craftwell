@@ -87,20 +87,38 @@ export function parsePersonLabel(
 export function fingerprintDocument(document: EvidenceDocumentInput): string {
   return createHash("sha256")
     .update(
-      JSON.stringify({
+      stableSerialize({
         identityKey: document.identityKey,
+        documentType: document.documentType,
+        canonicalUrl: document.canonicalUrl,
         title: document.title,
         publishedAt: document.publishedAt ?? null,
         sourceExcerpt: document.sourceExcerpt ?? null,
+        derivedSummary: document.derivedSummary ?? null,
         authors: document.authors ?? [],
         guests: document.guests ?? [],
         topics: document.topics ?? [],
         pmid: document.pmid ?? null,
-        doi: document.doi ?? null,
+        doi: document.doi?.toLowerCase() ?? null,
+        language: document.language ?? "en",
         rightsMode: document.rightsMode,
+        sourceVersion: document.metadata?.sourceVersion ?? null,
       })
     )
     .digest("hex");
+}
+
+export function fingerprintClaim(input: {
+  documentIdentityKey: string;
+  claimType: string;
+  claimText: string;
+  structuredData?: Record<string, unknown>;
+}): string {
+  return createHash("sha256").update(stableSerialize(input)).digest("hex");
+}
+
+export function fingerprintSourceVersion(value: unknown): string {
+  return createHash("sha256").update(stableSerialize(value)).digest("hex");
 }
 
 export function validateEvidenceDocument(document: EvidenceDocumentInput): EvidenceDocumentInput {
@@ -120,6 +138,7 @@ export function validateEvidenceDocument(document: EvidenceDocumentInput): Evide
     authors: uniqueStrings(document.authors ?? []),
     guests: uniqueStrings(document.guests ?? []),
     topics: uniqueStrings(document.topics ?? []),
+    doi: document.doi?.trim().toLowerCase() || undefined,
     language: document.language ?? "en",
     contentFingerprint: document.contentFingerprint ?? fingerprintDocument(document),
     metadata: document.metadata ?? {},
@@ -164,4 +183,17 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${stableSerialize(child)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
 }

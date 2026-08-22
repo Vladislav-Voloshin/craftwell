@@ -52,6 +52,42 @@ export interface PersonMentionInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface PersonSourceInput {
+  normalizedName: string;
+  sourceKind: "lab" | "institution" | "publication_profile" | "media" | "book" | "social" | "other";
+  url: string;
+  title?: string;
+  verified?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface EvidenceClaimInput {
+  documentIdentityKey: string;
+  claimHash: string;
+  claimText: string;
+  claimType: "finding" | "protocol" | "safety" | "limitation" | "context";
+  evidenceLevel?:
+    | "systematic_review"
+    | "meta_analysis"
+    | "randomized_trial"
+    | "controlled_trial"
+    | "observational"
+    | "preclinical"
+    | "expert_opinion"
+    | "unknown";
+  structuredData?: Record<string, unknown>;
+  extractionMethod?: string;
+  extractionModel?: string;
+}
+
+export interface EvidenceRelationInput {
+  sourceDocumentIdentityKey: string;
+  targetDocumentIdentityKey: string;
+  sourceKey: string;
+  relationType: "cites" | "transcript_for" | "media_of" | "mentions" | "updates";
+  metadata?: Record<string, unknown>;
+}
+
 export interface GuestResearchCandidate {
   displayName: string;
   normalizedName: string;
@@ -65,6 +101,10 @@ export interface EvidenceBatch {
   cursor: string;
   documents: EvidenceDocumentInput[];
   people: PersonMentionInput[];
+  personSources?: PersonSourceInput[];
+  claims?: EvidenceClaimInput[];
+  relations?: EvidenceRelationInput[];
+  errors?: string[];
   metadata?: Record<string, unknown>;
 }
 

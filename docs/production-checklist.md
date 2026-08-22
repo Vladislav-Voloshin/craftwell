@@ -26,12 +26,13 @@
 
 ### Optional
 
-| Variable             | Description                                                       |
-| -------------------- | ----------------------------------------------------------------- |
-| `LOG_LEVEL`          | Pino log level (defaults to `info` in production, `debug` in dev) |
-| `ANALYZE`            | Set to `true` to enable bundle analyzer                           |
-| `NCBI_CONTACT_EMAIL` | Operator contact for NCBI E-utilities (recommended)               |
-| `NCBI_API_KEY`       | Optional higher NCBI request allowance                            |
+| Variable                 | Description                                                       |
+| ------------------------ | ----------------------------------------------------------------- |
+| `LOG_LEVEL`              | Pino log level (defaults to `info` in production, `debug` in dev) |
+| `ANALYZE`                | Set to `true` to enable bundle analyzer                           |
+| `NCBI_CONTACT_EMAIL`     | Operator contact for NCBI E-utilities (recommended)               |
+| `NCBI_API_KEY`           | Optional higher NCBI request allowance                            |
+| `CROSSREF_CONTACT_EMAIL` | Operator contact for the Crossref polite pool (recommended)       |
 
 ---
 
