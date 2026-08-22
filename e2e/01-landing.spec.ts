@@ -17,6 +17,9 @@ test.describe("Landing Page", () => {
 
     // Check hero content
     await expect(page.getByRole("heading").first()).toBeVisible();
+
+    // Keep one clear App Store callout in the final waitlist section.
+    await expect(page.getByTitle("Launching soon on iOS")).toHaveCount(1);
   });
 
   test("has Get Started CTA linking to auth", async ({ page }) => {
