@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { extractTimestampMarkers, parseHubermanRss } from "./huberman-rss";
+import {
+  extractTimestampMarkers,
+  isProtocolTimestampLabel,
+  parseHubermanRss,
+} from "./huberman-rss";
 
 const SAMPLE_FEED = `<?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
@@ -62,5 +66,32 @@ describe("Huberman RSS evidence parser", () => {
     expect(extractTimestampMarkers("\n(01:02:03) Tool: Example\n")).toEqual([
       { timestamp: "01:02:03", seconds: 3723, label: "Tool: Example" },
     ]);
+  });
+
+  it.each([
+    "Tool: Meditation & Breathing Techniques",
+    "Morning Light Exposure Timing",
+    "How to Improve Sleep",
+    "Supplement Dosage & Timing",
+    "Exercise Protocol: Three Training Steps",
+  ])("accepts action-oriented protocol marker %s", (label) => {
+    expect(isProtocolTimestampLabel(label)).toBe(true);
+  });
+
+  it.each([
+    "Sponsor: Eight Sleep",
+    "Sponsors: Joovv & Eight Sleep",
+    "Neural Network, Supplement Sources, Sponsors",
+    "Thank you to our sponsors: Eight Sleep",
+    "Sleep & Illness Susceptibility",
+    "Nutrition & Metabolism",
+    "Recovery",
+    "Title Card: Sleep",
+    "Announcement: Protocols Live Events",
+    "Book Recommendation: How Emotions Are Made",
+    "An Excellent Review on Training (See Caption On YouTube)",
+    "Zero-Cost Support, YouTube Reviews, Protocols Book, Neural Network Newsletter",
+  ])("rejects promotional or topic-only marker %s", (label) => {
+    expect(isProtocolTimestampLabel(label)).toBe(false);
   });
 });

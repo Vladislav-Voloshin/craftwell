@@ -15,6 +15,11 @@ import type {
 
 export const HUBERMAN_RSS_URL = "https://feeds.megaphone.fm/hubermanlab";
 const MAX_RSS_BYTES = 5_000_000;
+const PROTOCOL_MARKER_POLICY = "action_cues_v3";
+const PROMOTIONAL_MARKER_PATTERN =
+  /\b(?:sponsors?|sponsored\s+by|advertisements?|ads?|newsletters?|protocols?\s+book|book\s+recommendations?|zero[-\s]*cost\s+support|supporting\s+the\s+hlp|see\s+caption(?:\s+on\s+youtube)?|live\s+events?)\b|^\s*(?:support|subscribe|disclaimer|title\s+card|announcement)\b/i;
+const PROTOCOL_ACTION_CUE_PATTERN =
+  /\b(?:tools?|protocols?|exercises?|meditat(?:e|es|ed|ing|ion|ions|ive)|breath(?:s|ing|work)?|supplements?|supplementation|doses?|dosage|practices?|training|exposures?|timing|how\s+to|steps?|recommend(?:ed|ation|ations|ing)?|routines?|methods?|techniques?|therap(?:y|ies)|interventions?|strateg(?:y|ies)|guidelines?|habits?|schedules?|optimi[sz](?:e|es|ed|ing|ation))\b/i;
 
 interface TimestampMarker {
   timestamp: string;
@@ -133,11 +138,7 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
   );
   const sourceExcerpt = createSourceExcerpt(summary);
   const protocolMarkers = timestamps
-    .filter((marker) =>
-      /\b(tool|protocol|exercise|meditat|breath|sleep|light|nutrition|supplement|dose|dosage|recovery)\b/i.test(
-        marker.label
-      )
-    )
+    .filter((marker) => isProtocolTimestampLabel(marker.label))
     .slice(0, 40);
 
   const document: EvidenceDocumentInput = {
@@ -160,9 +161,11 @@ function parseEpisodeItem(itemXml: string): ParsedEpisode | null {
       durationSeconds,
       timestamps: timestamps.slice(0, 120),
       protocolMarkers,
+      protocolMarkerPolicy: PROTOCOL_MARKER_POLICY,
       sourceVersion: fingerprintSourceVersion({
         timestamps: timestamps.slice(0, 120),
         protocolMarkers,
+        protocolMarkerPolicy: PROTOCOL_MARKER_POLICY,
       }),
       sourceDisclaimerUrl: "https://www.hubermanlab.com/disclaimer",
       contentPolicy: "no_audio_or_full_transcript_stored",
@@ -274,6 +277,12 @@ export function extractTimestampMarkers(value: string): TimestampMarker[] {
   }
 
   return markers;
+}
+
+export function isProtocolTimestampLabel(label: string): boolean {
+  const normalized = label.replace(/\s+/g, " ").trim();
+  if (!normalized || PROMOTIONAL_MARKER_PATTERN.test(normalized)) return false;
+  return PROTOCOL_ACTION_CUE_PATTERN.test(normalized);
 }
 
 function extractXmlTag(xml: string, tag: string): string {
