@@ -6,6 +6,8 @@
 
 import { test, expect } from "./fixtures";
 
+test.use({ workerAuth: false });
+
 test.describe("Landing Page", () => {
   test("displays hero section with Craftwell branding", async ({ page }) => {
     await page.goto("/");
@@ -14,9 +16,7 @@ test.describe("Landing Page", () => {
     await expect(page.getByText("Craftwell").first()).toBeVisible();
 
     // Check hero content
-    await expect(
-      page.getByRole("heading").first()
-    ).toBeVisible();
+    await expect(page.getByRole("heading").first()).toBeVisible();
   });
 
   test("has Get Started CTA linking to auth", async ({ page }) => {

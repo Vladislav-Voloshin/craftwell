@@ -18,7 +18,7 @@ does not mirror copyrighted source libraries.
 | Podcast guests via Crossref    | Active                     | DOI metadata for publications, proceedings, preprints, chapters and books; ORCID candidates            | Abstracts, full text or automatic identity claims |
 | Huberman YouTube channel index | Active when API key is set | Official video IDs, titles, dates, duration/tags, and caption/transcript availability references       | Descriptions, captions, audio or transcript text  |
 | Examine                        | Disabled                   | Nothing until a suitable data licence is documented                                                    | Scraped member or editorial content               |
-| Open Library catalog           | Disabled, adapter pending  | Books cited by official episode pages or Crossref are already retained as metadata                     | Book text                                         |
+| Open Library catalog           | Active                     | ISBN-matched titles, authors, years, publishers, languages and canonical work links                    | Descriptions, scans or book text                  |
 
 Full transcripts, books, abstracts, captions, audio, and licensed databases may
 only enter the system when Craftwell has a licence or the rights-holder/user has
@@ -33,24 +33,28 @@ keys recursively and caps source excerpts at 500 characters.
    candidates; they are never published as medical claims automatically.
 4. Every new official episode page contributes transcript availability and a
    graph of cited studies, books, media, and public lab/profile links.
-5. When `YOUTUBE_API_KEY` is configured, the official channel uploads playlist
+5. Valid cited ISBNs are resolved through one low-volume Open Library batch;
+   only bibliographic fields are retained and results are cached in Supabase.
+6. When `YOUTUBE_API_KEY` is configured, the official channel uploads playlist
    is checked for new videos. Caption availability is retained as a reference;
    description, caption, audio, and transcript bodies are discarded.
-6. Sources run independently and are recorded in `ingestion_runs`. Retryable
+7. Sources run independently and are recorded in `ingestion_runs`. Retryable
    HTTP failures use bounded backoff; per-page failures make the run partial.
-7. Canonical records merge by stable identity, PMID, or DOI.
+8. Canonical records merge by stable identity, PMID, or DOI.
    `document_sources` retains every discovery path and
    `evidence_document_relations` retains episode-to-resource provenance.
-8. New episode guests enter a rotating research queue. Five guests are checked
+9. New episode guests enter a rotating research queue. Five guests are checked
    in both PubMed and Crossref each week; all name matches remain `candidate`
    until reviewed.
-9. Successful cursors and guest checkpoints advance only when every selected
-   guest source succeeds. A failed source does not roll back successful sources.
+10. Successful cursors and guest checkpoints advance only when every selected
+    guest source succeeds. A failed source does not roll back successful sources.
 
 PubMed requests run serially and are paced for NCBI's unkeyed limit. Supplying
 `NCBI_API_KEY` raises the permitted request rate; `NCBI_CONTACT_EMAIL` identifies
 the operator to NCBI. Crossref requests use its one-request-per-second public
 pool; `CROSSREF_CONTACT_EMAIL` opts into the polite pool when configured.
+Open Library queries use ISBN batches of at most 50, a one-request-per-second
+fallback, and `OPEN_LIBRARY_CONTACT_EMAIL` (or the NCBI contact) when available.
 
 ## Data model
 
@@ -87,9 +91,10 @@ For the bounded historical page/reference and Crossref backfills, run:
 
 ```bash
 npx tsx scripts/backfill-evidence-references.ts --source=all
+npx tsx scripts/backfill-evidence-references.ts --source=books --limit=500
 ```
 
-The script supports `--source=episodes|crossref`, `--offset`, `--limit`,
+The script supports `--source=episodes|crossref|books`, `--offset`, `--limit`,
 `--batch-size`, `--rows`, `--max-pages`, and `--guest="Guest Name"` for bounded,
 resumable operations. Start Crossref backfills with a small guest-specific
 canary; every name match remains a candidate until a reviewer validates the

@@ -7,6 +7,7 @@ import { fetchHubermanSiteEvidence } from "./huberman-site";
 import { fetchHubermanEpisodePageEvidence } from "./huberman-episode-pages";
 import { fetchHubermanYouTubeEvidence } from "./huberman-youtube";
 import { fetchGuestCrossrefEvidence } from "./crossref-guests";
+import { fetchOpenLibraryBookEvidence } from "./open-library-books";
 import { createEvidenceStore } from "./store";
 import type {
   EvidenceBatch,
@@ -21,6 +22,7 @@ import type {
 export type WeeklySourceKey =
   | "huberman-rss"
   | "huberman-episode-pages"
+  | "books-catalog"
   | "huberman-youtube"
   | "huberman-site"
   | "pubmed-health"
@@ -66,6 +68,7 @@ export async function runWeeklyEvidenceIngestion(
   const sourceCursorStarts: Partial<Record<WeeklySourceKey, Date>> = {
     "huberman-rss": options.hubermanPublishedSince ?? defaultFrom,
     "huberman-episode-pages": options.hubermanPublishedSince ?? defaultFrom,
+    "books-catalog": options.hubermanPublishedSince ?? defaultFrom,
     "huberman-youtube": options.youtubePublishedSince ?? defaultFrom,
     "pubmed-health": options.pubmedFrom ?? defaultFrom,
     "huberman-stanford-lab": options.pubmedFrom ?? defaultFrom,
@@ -73,6 +76,7 @@ export async function runWeeklyEvidenceIngestion(
     "crossref-guests": options.pubmedFrom ?? defaultFrom,
   };
   let hubermanBatchPromise: Promise<EvidenceBatch> | undefined;
+  let episodePageBatchPromise: Promise<EvidenceBatch> | undefined;
   let selectedGuestCandidates: GuestResearchCandidate[] = [];
 
   const getHubermanBatch = () => {
@@ -82,6 +86,17 @@ export async function runWeeklyEvidenceIngestion(
       fetchImpl,
     });
     return hubermanBatchPromise;
+  };
+
+  const getEpisodePageBatch = () => {
+    episodePageBatchPromise ??= getHubermanBatch().then((batch) =>
+      fetchHubermanEpisodePageEvidence({
+        episodes: batch.documents,
+        now,
+        fetchImpl,
+      })
+    );
+    return episodePageBatchPromise;
   };
 
   const getGuestCandidates = async (): Promise<GuestResearchCandidate[]> => {
@@ -117,12 +132,16 @@ export async function runWeeklyEvidenceIngestion(
 
   const collectors: Record<WeeklySourceKey, () => Promise<EvidenceBatch>> = {
     "huberman-rss": getHubermanBatch,
-    "huberman-episode-pages": async () =>
-      fetchHubermanEpisodePageEvidence({
-        episodes: (await getHubermanBatch()).documents,
+    "huberman-episode-pages": getEpisodePageBatch,
+    "books-catalog": async () => {
+      const episodePages = await getEpisodePageBatch();
+      return fetchOpenLibraryBookEvidence({
+        references: episodePages.documents.filter((document) => document.documentType === "book"),
         now,
         fetchImpl,
-      }),
+        contactEmail: process.env.OPEN_LIBRARY_CONTACT_EMAIL ?? process.env.NCBI_CONTACT_EMAIL,
+      });
+    },
     "huberman-youtube": () =>
       fetchHubermanYouTubeEvidence({
         apiKey: youtubeApiKey ?? "",
@@ -233,6 +252,7 @@ function defaultSourceKeys(hasYouTubeApiKey: boolean): WeeklySourceKey[] {
   return [
     "huberman-rss",
     "huberman-episode-pages",
+    "books-catalog",
     ...(hasYouTubeApiKey ? (["huberman-youtube"] as const) : []),
     "huberman-site",
     "pubmed-health",

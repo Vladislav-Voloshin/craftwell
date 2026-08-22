@@ -140,6 +140,7 @@ describe("weekly evidence orchestrator", () => {
 
     expect(result.status).toBe("succeeded");
     expect(store.persisted.map((batch) => batch.sourceKey).sort()).toEqual([
+      "books-catalog",
       "crossref-guests",
       "huberman-episode-pages",
       "huberman-rss",
@@ -150,6 +151,7 @@ describe("weekly evidence orchestrator", () => {
       "pubmed-health",
     ]);
     expect(store.finished.sort()).toEqual([
+      "books-catalog:succeeded",
       "crossref-guests:succeeded",
       "huberman-episode-pages:succeeded",
       "huberman-rss:succeeded",

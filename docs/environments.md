@@ -34,6 +34,7 @@
 | `NCBI_CONTACT_EMAIL`             | Recommended | Server            | Operator contact for NCBI E-utilities                          |
 | `NCBI_API_KEY`                   | No          | Server            | Higher NCBI E-utilities request allowance                      |
 | `CROSSREF_CONTACT_EMAIL`         | Recommended | Server            | Operator contact for the Crossref polite pool                  |
+| `OPEN_LIBRARY_CONTACT_EMAIL`     | Recommended | Server            | Identifies low-volume Open Library metadata requests           |
 | `NEXT_PUBLIC_APP_URL`            | No          | Client            | App base URL (default: auto-detected)                          |
 | `NEXT_PUBLIC_APPLE_AUTH_ENABLED` | No          | Client            | Shows Apple Sign-In only when its Supabase provider is enabled |
 | `SENTRY_ORG`                     | No          | Build             | Sentry organization slug                                       |
@@ -61,9 +62,9 @@ huberman-health-adviser/
 │   ├── setup.md                       # Developer setup guide
 │   ├── user-guide.md                  # End-user manual
 │   └── user-help-guide.md            # In-app help content
-├── e2e/                               # Playwright E2E tests (23 files)
-│   ├── 01-07-*.spec.ts               # Smoke tests (run on PRs)
-│   ├── 08-23-*.spec.ts               # Full suite (run on push)
+├── e2e/                               # Playwright E2E tests (25 files)
+│   ├── 01-07-*.spec.ts               # Smoke tests (8 files; run on PRs)
+│   ├── 08-24-*.spec.ts               # Additional full-suite coverage
 │   └── helpers.ts                     # Test utilities and auth helpers
 ├── public/                            # Static assets
 │   └── manifest.json                  # PWA manifest
@@ -142,7 +143,7 @@ dev (staging)         ←── all PRs merge here
 2. All PRs target `dev` (never `main` directly)
 3. PRs are NEVER draft — always ready for review
 4. Codex automated review runs on every PR push
-5. E2E smoke tests (7 files) run on PRs, full suite (23 files) on push to dev/main
+5. E2E smoke tests (8 files) run on PRs, full suite (24 files) on push to dev/main
 6. At sprint end: QA tests dev preview, signs off, then dev merges to main
 7. Vercel deploys production on merge to main
 
@@ -155,19 +156,24 @@ dev (staging)         ←── all PRs merge here
 1. Lint (`npm run lint`)
 2. Type check (`npx tsc --noEmit`)
 3. Build (`npm run build`)
-4. E2E smoke tests (7 critical test files)
+4. E2E smoke tests (8 critical test files)
 5. Codex automated code review
 6. Vercel preview deploy skipped (rate limit protection)
 
 ### On push to dev:
 
-1. Same as PR checks but full E2E suite (23 files)
+1. Same as PR checks but full E2E suite (24 files)
 2. Vercel preview deploy
 
 ### On push to main:
 
 1. Full E2E suite
 2. Vercel production deploy
+
+CI uses one Playwright worker and one run-scoped authenticated session. This
+keeps real Supabase email-login coverage while avoiding hosted Auth rate-limit
+bursts and server-rendering contention. Public auth and onboarding tests opt out
+of the stored session and continue to exercise unauthenticated behavior.
 
 ---
 
